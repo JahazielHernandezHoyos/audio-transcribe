@@ -1,5 +1,9 @@
 {
-  "current_model": "tiny",
-  "downloaded_models": [],
+  "current_model": "base",
+  "downloaded_models": [
+    "base",
+    "small",
+    "tiny"
+  ],
   "last_updated": null
 }

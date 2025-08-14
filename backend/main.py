@@ -34,6 +34,7 @@ app_state = {
     "connected_clients": set(),
     "selected_device_index": None,  # Índice de dispositivo de entrada seleccionado
     "selected_output_index": None,  # Índice de dispositivo de salida seleccionado (Windows)
+    "selected_source": "input",    # Fuente: input | system
 }
 
 async def transcription_broadcaster():
@@ -212,6 +213,7 @@ def _list_audio_devices() -> Dict[str, any]:
 def _resolve_device_index(
     selected_device_index: Optional[int] = None,
     selected_output_index: Optional[int] = None,
+    source: str = "input",
 ) -> Optional[int]:
     """Resolver índice final de dispositivo de entrada a usar.
 
@@ -227,8 +229,8 @@ def _resolve_device_index(
             pa = pyaudio.PyAudio()
             device_count = pa.get_device_count()
 
-            # Si se indicó dispositivo de entrada explícito y es válido
-            if selected_device_index is not None:
+            # Si la fuente es 'input', priorizar el dispositivo de entrada
+            if source == "input" and selected_device_index is not None:
                 try:
                     info = pa.get_device_info_by_index(int(selected_device_index))
                     if (info.get("maxInputChannels", 0) or 0) > 0:
@@ -238,8 +240,8 @@ def _resolve_device_index(
                 except Exception:
                     pass
 
-            # Si se indicó un dispositivo de salida, buscar su loopback
-            if selected_output_index is not None:
+            # Si la fuente es 'system', buscar el loopback del dispositivo de salida
+            if source == "system" and selected_output_index is not None:
                 try:
                     out_info = pa.get_device_info_by_index(int(selected_output_index))
                     out_name = str(out_info.get("name", ""))
@@ -261,12 +263,33 @@ def _resolve_device_index(
                 except Exception:
                     pass
 
+            # Fallbacks: si no se pudo resolver, para 'system' usa cualquier loopback; para 'input' cualquier input
+            try:
+                if source == "system":
+                    for i in range(device_count):
+                        info = pa.get_device_info_by_index(i)
+                        name = str(info.get("name", ""))
+                        if (info.get("maxInputChannels", 0) or 0) > 0 and "loopback" in name.lower():
+                            final_index = i
+                            break
+                else:
+                    for i in range(device_count):
+                        info = pa.get_device_info_by_index(i)
+                        if (info.get("maxInputChannels", 0) or 0) > 0:
+                            final_index = i
+                            break
+            except Exception:
+                pass
+
             pa.terminate()
         else:
-            # En Linux/macOS solo se usa el índice de entrada
+            # En Linux/macOS: usar índice de entrada; para 'system' el usuario debe seleccionar el monitor (p.ej., '.monitor')
             if selected_device_index is not None:
-                final_index = int(selected_device_index)
-                return final_index
+                try:
+                    final_index = int(selected_device_index)
+                    return final_index
+                except Exception:
+                    pass
     except Exception as e:
         logger.error(f"Error resolviendo índice de dispositivo: {e}")
 
@@ -276,6 +299,7 @@ def _resolve_device_index(
 def start_audio_capture(
     selected_device_index: Optional[int] = None,
     selected_output_index: Optional[int] = None,
+    source: str = "input",
 ) -> Dict[str, any]:
     """Iniciar captura de audio."""
     if app_state["is_capturing"]:
@@ -284,7 +308,7 @@ def start_audio_capture(
     try:
         # Resolver dispositivo preferido
         resolved_index = _resolve_device_index(
-            selected_device_index, selected_output_index
+            selected_device_index, selected_output_index, source
         )
 
         # Guardar selección
@@ -292,6 +316,7 @@ def start_audio_capture(
         app_state["selected_output_index"] = (
             int(selected_output_index) if selected_output_index is not None else None
         )
+        app_state["selected_source"] = source
 
         # Crear capturador de audio
         app_state["audio_capture"] = AudioCapture(
@@ -309,6 +334,7 @@ def start_audio_capture(
             "success": True,
             "message": "Captura iniciada",
             "device_index": resolved_index,
+            "source": source,
         }
         
     except AudioCaptureError as e:
@@ -371,7 +397,12 @@ async def get_status():
         "is_capturing": app_state["is_capturing"],
         "connected_clients": len(app_state["connected_clients"]),
         "transcription_queue_size": app_state["transcription_queue"].qsize(),
-        "transcriber": transcriber_info
+        "transcriber": transcriber_info,
+        "selected": {
+            "device_index": app_state.get("selected_device_index"),
+            "output_device_index": app_state.get("selected_output_index"),
+            "source": app_state.get("selected_source", "input"),
+        }
     }
 
 
@@ -449,6 +480,40 @@ async def load_model(model_id: str, language: str = "spanish"):
         else:
             raise HTTPException(status_code=400, detail=f"Error cargando modelo {model_id}")
             
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/language")
+async def set_language(language: str = "spanish"):
+    """Actualizar el idioma de transcripción sin cambiar el modelo actual."""
+    try:
+        if not app_state["transcriber"]:
+            raise HTTPException(status_code=400, detail="Transcriptor no inicializado")
+
+        # Si hay captura activa, pausar mientras se aplica el cambio
+        was_capturing = app_state["is_capturing"]
+        if was_capturing:
+            stop_audio_capture()
+
+        # Aplicar cambio rehaciendo la carga del modelo actual con nuevo idioma
+        current_model = app_state["transcriber"].transcriber.model_id
+        ok = app_state["transcriber"].transcriber.change_model(current_model, language)
+
+        if not ok:
+            raise HTTPException(status_code=400, detail="No se pudo aplicar el idioma")
+
+        # Restaurar captura si estaba activa
+        if was_capturing:
+            start_audio_capture(
+                app_state.get("selected_device_index"),
+                app_state.get("selected_output_index"),
+                app_state.get("selected_source", "input"),
+            )
+
+        return {"success": True, "message": f"Idioma cambiado a {language}"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -537,7 +602,8 @@ async def websocket_endpoint(websocket: WebSocket):
             if command == "start_capture":
                 device_index = data.get("device_index")
                 output_device_index = data.get("output_device_index")
-                result = start_audio_capture(device_index, output_device_index)
+                source = data.get("source", "input")
+                result = start_audio_capture(device_index, output_device_index, source)
                 response["data"] = result
                 
             elif command == "stop_capture":
