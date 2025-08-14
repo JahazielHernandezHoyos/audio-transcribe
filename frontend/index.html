@@ -242,6 +242,22 @@
             </div>
         </div>
 
+        <div class="device-selector" style="background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+            <h4>🎚️ Dispositivos de Audio</h4>
+            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
+                <div>
+                    <label for="inputDevice" style="font-size: 0.9em; opacity: 0.9;">Entrada</label><br/>
+                    <select id="inputDevice" style="min-width: 260px; padding: 6px 10px; border-radius: 8px;"></select>
+                </div>
+                <div>
+                    <label for="outputDevice" style="font-size: 0.9em; opacity: 0.9;">Salida (Windows)</label><br/>
+                    <select id="outputDevice" style="min-width: 260px; padding: 6px 10px; border-radius: 8px;"></select>
+                </div>
+                <button id="refreshDevicesBtn" class="clear-btn" style="height: 36px;" onclick="refreshDevices()">🔄 Actualizar</button>
+            </div>
+            <div id="deviceStatus" style="margin-top: 8px; font-size: 0.85em; opacity: 0.8;"></div>
+        </div>
+
         <div class="model-selector" style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
             <h4>🤖 Modelo Whisper Actual</h4>
             <div id="currentModel" style="font-size: 0.9em; opacity: 0.8;">Cargando...</div>
@@ -294,6 +310,9 @@
         const startBtn = document.getElementById('startBtn');
         const stopBtn = document.getElementById('stopBtn');
         const transcriptionText = document.getElementById('transcriptionText');
+        const inputDevice = document.getElementById('inputDevice');
+        const outputDevice = document.getElementById('outputDevice');
+        const deviceStatus = document.getElementById('deviceStatus');
 
         // Configuración
         const API_BASE = 'http://127.0.0.1:8000';
@@ -483,8 +502,12 @@
         // Iniciar captura
         function startCapture() {
             if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const selectedInput = inputDevice.value ? parseInt(inputDevice.value, 10) : null;
+                const selectedOutput = outputDevice.value ? parseInt(outputDevice.value, 10) : null;
                 const command = {
-                    command: 'start_capture'
+                    command: 'start_capture',
+                    device_index: isNaN(selectedInput) ? null : selectedInput,
+                    output_device_index: isNaN(selectedOutput) ? null : selectedOutput,
                 };
                 websocket.send(JSON.stringify(command));
             } else {
@@ -578,6 +601,7 @@
             updateConnectionStatus('disconnected', 'Conectando...');
             connectWebSocket();
             loadModelInfo();
+            refreshDevices();
         }
 
         // Iniciar cuando la página esté cargada
@@ -589,6 +613,40 @@
                 websocket.close();
             }
         });
+
+        // Dispositivos de audio
+        async function refreshDevices() {
+            try {
+                deviceStatus.textContent = 'Cargando dispositivos...';
+                const response = await fetch(`${API_BASE}/audio/devices`);
+                const data = await response.json();
+
+                // Poblar selects
+                inputDevice.innerHTML = '';
+                outputDevice.innerHTML = '';
+
+                const makeOption = (d) => {
+                    const opt = document.createElement('option');
+                    opt.value = d.index;
+                    const rate = d.default_sample_rate || d.default_samplerate || '';
+                    const inCh = d.max_input_channels ?? d.maxInputChannels ?? 0;
+                    opt.textContent = `${d.index}: ${d.name} ${inCh>0?'(in)':''} ${rate?`- ${Math.round(rate)}Hz`:''}`;
+                    return opt;
+                };
+
+                if (Array.isArray(data.input_devices)) {
+                    data.input_devices.forEach((d) => inputDevice.appendChild(makeOption(d)));
+                }
+                if (Array.isArray(data.output_devices)) {
+                    data.output_devices.forEach((d) => outputDevice.appendChild(makeOption(d)));
+                }
+
+                deviceStatus.textContent = `Encontrados: ${data.input_devices?.length||0} entradas, ${data.output_devices?.length||0} salidas`;
+            } catch (e) {
+                console.error('Error cargando dispositivos', e);
+                deviceStatus.textContent = 'Error cargando dispositivos';
+            }
+        }
     </script>
 </body>
 </html>
