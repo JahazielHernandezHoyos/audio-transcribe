@@ -30,7 +30,9 @@ app_state = {
     "audio_capture": None,
     "transcriber": None,
     "transcription_queue": queue.Queue(),
-    "connected_clients": set()
+    "connected_clients": set(),
+    "selected_device_index": None,  # Índice de dispositivo de entrada seleccionado
+    "selected_output_index": None,  # Índice de dispositivo de salida seleccionado (Windows)
 }
 
 async def transcription_broadcaster():
@@ -139,16 +141,162 @@ def audio_callback(audio_data: np.ndarray):
         else:
             logger.debug(f"🔇 Chunk muy silencioso (vol: {rms_volume:.4f}), ignorando")
 
-def start_audio_capture() -> dict[str, any]:
+def _list_audio_devices() -> Dict[str, any]:
+    """Listar dispositivos de audio disponibles por plataforma."""
+    import platform as _platform
+    devices = []
+    input_devices = []
+    output_devices = []
+    loopback_devices = []
+
+    try:
+        if _platform.system().lower() == "windows":
+            try:
+                import pyaudiowpatch as pyaudio
+                pa = pyaudio.PyAudio()
+                for i in range(pa.get_device_count()):
+                    info = pa.get_device_info_by_index(i)
+                    device = {
+                        "index": i,
+                        "name": info.get("name"),
+                        "max_input_channels": info.get("maxInputChannels"),
+                        "default_sample_rate": info.get("defaultSampleRate"),
+                        "host_api": info.get("hostApi"),
+                        "is_loopback": "loopback" in str(info.get("name", "")).lower(),
+                        "is_input": (info.get("maxInputChannels", 0) or 0) > 0,
+                    }
+                    devices.append(device)
+                    if device["is_input"]:
+                        input_devices.append(device)
+                        if device["is_loopback"]:
+                            loopback_devices.append(device)
+                    else:
+                        output_devices.append(device)
+                pa.terminate()
+            except Exception as e:
+                logger.error(f"Error listando dispositivos Windows: {e}")
+        else:
+            try:
+                import sounddevice as sd
+                sd_devs = sd.query_devices()
+                for i, info in enumerate(sd_devs):
+                    device = {
+                        "index": i,
+                        "name": info.get("name"),
+                        "max_input_channels": info.get("max_input_channels", info.get("max_input_channels", 0)),
+                        "max_output_channels": info.get("max_output_channels", info.get("max_output_channels", 0)),
+                        "default_samplerate": info.get("default_samplerate"),
+                        "is_input": (info.get("max_input_channels", 0) or 0) > 0,
+                    }
+                    devices.append(device)
+                    if device["is_input"]:
+                        input_devices.append(device)
+                    else:
+                        output_devices.append(device)
+            except Exception as e:
+                logger.error(f"Error listando dispositivos Linux/macOS: {e}")
+
+    except Exception as e:
+        logger.error(f"Error listando dispositivos: {e}")
+
+    return {
+        "platform": _platform.system().lower(),
+        "devices": devices,
+        "input_devices": input_devices,
+        "output_devices": output_devices,
+        "loopback_devices": loopback_devices,
+    }
+
+
+def _resolve_device_index(
+    selected_device_index: Optional[int] = None,
+    selected_output_index: Optional[int] = None,
+) -> Optional[int]:
+    """Resolver índice final de dispositivo de entrada a usar.
+
+    - En Windows, si se da un índice de salida, busca el input loopback correspondiente por nombre.
+    - Si se da un índice de entrada válido, úsalo.
+    - Si nada válido, retorna None para usar el fallback automático.
+    """
+    import platform as _platform
+    final_index = None
+    try:
+        if _platform.system().lower() == "windows":
+            import pyaudiowpatch as pyaudio
+            pa = pyaudio.PyAudio()
+            device_count = pa.get_device_count()
+
+            # Si se indicó dispositivo de entrada explícito y es válido
+            if selected_device_index is not None:
+                try:
+                    info = pa.get_device_info_by_index(int(selected_device_index))
+                    if (info.get("maxInputChannels", 0) or 0) > 0:
+                        final_index = int(selected_device_index)
+                        pa.terminate()
+                        return final_index
+                except Exception:
+                    pass
+
+            # Si se indicó un dispositivo de salida, buscar su loopback
+            if selected_output_index is not None:
+                try:
+                    out_info = pa.get_device_info_by_index(int(selected_output_index))
+                    out_name = str(out_info.get("name", ""))
+                    loopback_candidate = None
+                    for i in range(device_count):
+                        info = pa.get_device_info_by_index(i)
+                        name = str(info.get("name", ""))
+                        if (
+                            (info.get("maxInputChannels", 0) or 0) > 0
+                            and "loopback" in name.lower()
+                            and out_name.split(" (")[0].lower() in name.lower()
+                        ):
+                            loopback_candidate = i
+                            break
+                    if loopback_candidate is not None:
+                        final_index = loopback_candidate
+                        pa.terminate()
+                        return final_index
+                except Exception:
+                    pass
+
+            pa.terminate()
+        else:
+            # En Linux/macOS solo se usa el índice de entrada
+            if selected_device_index is not None:
+                final_index = int(selected_device_index)
+                return final_index
+    except Exception as e:
+        logger.error(f"Error resolviendo índice de dispositivo: {e}")
+
+    return final_index
+
+
+def start_audio_capture(
+    selected_device_index: Optional[int] = None,
+    selected_output_index: Optional[int] = None,
+) -> Dict[str, any]:
     """Iniciar captura de audio."""
     if app_state["is_capturing"]:
         return {"success": False, "message": "Captura ya activa"}
 
     try:
+        # Resolver dispositivo preferido
+        resolved_index = _resolve_device_index(
+            selected_device_index, selected_output_index
+        )
+
+        # Guardar selección
+        app_state["selected_device_index"] = resolved_index
+        app_state["selected_output_index"] = (
+            int(selected_output_index) if selected_output_index is not None else None
+        )
+
         # Crear capturador de audio
         app_state["audio_capture"] = AudioCapture(
             sample_rate=16000,
-            chunk_size=1024
+            chunk_size=1024,
+            preferred_device_index=resolved_index,
         )
 
         # Iniciar captura con callback
@@ -156,8 +304,12 @@ def start_audio_capture() -> dict[str, any]:
         app_state["is_capturing"] = True
 
         logger.info("🎵 Captura de audio iniciada")
-        return {"success": True, "message": "Captura iniciada"}
-
+        return {
+            "success": True,
+            "message": "Captura iniciada",
+            "device_index": resolved_index,
+        }
+        
     except AudioCaptureError as e:
         logger.error(f"❌ Error iniciando captura: {e}")
         return {"success": False, "message": str(e)}
@@ -220,6 +372,12 @@ async def get_status():
         "transcription_queue_size": app_state["transcription_queue"].qsize(),
         "transcriber": transcriber_info
     }
+
+
+@app.get("/audio/devices")
+async def get_audio_devices():
+    """Obtener lista de dispositivos de audio disponibles."""
+    return _list_audio_devices()
 
 @app.post("/start_capture")
 async def start_capture():
@@ -371,7 +529,9 @@ async def websocket_endpoint(websocket: WebSocket):
             response = {"type": "response", "command": command}
 
             if command == "start_capture":
-                result = start_audio_capture()
+                device_index = data.get("device_index")
+                output_device_index = data.get("output_device_index")
+                result = start_audio_capture(device_index, output_device_index)
                 response["data"] = result
 
             elif command == "stop_capture":
