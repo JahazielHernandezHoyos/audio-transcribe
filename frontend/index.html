@@ -1,489 +1,293 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Transcribe - Transcripción en Tiempo Real</title>
+    
+    <!-- Google Fonts - Monospaced for Vim aesthetic -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500;600&family=Roboto+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'code': ['Fira Code', 'JetBrains Mono', 'monospace'],
+                        'mono': ['Roboto Mono', 'monospace'],
+                    },
+                    colors: {
+                        vim: {
+                            bg: '#002b36',        // Solarized Dark base03
+                            surface: '#073642',   // Solarized Dark base02  
+                            text: '#839496',      // Solarized Dark base0
+                            bright: '#f8f8f2',   // Dracula foreground
+                            comment: '#6272a4',   // Dracula comment
+                            accent: '#8be9fd',    // Dracula cyan
+                            blue: '#268bd2',      // Solarized blue
+                            border: '#44475a',   // Dracula current line
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .container {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 40px;
-            max-width: 800px;
+        /* Terminal scanlines effect */
+        .scanlines::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            height: 100%;
+            background: linear-gradient(
+                transparent 50%, 
+                rgba(0, 255, 0, 0.01) 51%
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 1;
         }
-
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.5em;
-            font-weight: 300;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        
+        /* Glow effects */
+        .glow-cyan {
+            box-shadow: 0 0 20px rgba(139, 233, 253, 0.3);
+            transition: all 0.2s ease;
         }
-
-        .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
+        
+        .glow-cyan:hover {
+            box-shadow: 0 0 30px rgba(139, 233, 253, 0.5);
         }
-
-        .status-indicator {
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        
+        .glow-blue {
+            box-shadow: 0 0 20px rgba(38, 139, 210, 0.3);
+            transition: all 0.2s ease;
         }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background: #ff6b6b;
-            animation: pulse 2s infinite;
+        
+        .glow-blue:hover {
+            box-shadow: 0 0 30px rgba(38, 139, 210, 0.5);
         }
-
-        .status-dot.connected {
-            background: #51cf66;
-        }
-
-        .status-dot.capturing {
-            background: #ffd43b;
-        }
-
-        @keyframes pulse {
+        
+        /* Pulse animation for status dots */
+        @keyframes pulse-vim {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-
-        /* Modal selector de modelos */
-        .modal-backdrop {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 50;
+        
+        .pulse-vim {
+            animation: pulse-vim 2s infinite;
         }
-
-        .modal-backdrop.show {
-            display: flex;
-        }
-
-        .modal-content {
-            background: #1f1b2e;
-            color: #fff;
-            width: 860px;
-            max-width: 95vw;
-            max-height: 80vh;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
-            border: 1px solid rgba(255,255,255,0.12);
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            animation: fadeIn 0.2s ease;
-        }
-
-        .modal-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 16px 18px;
-            background: rgba(255,255,255,0.06);
-        }
-
-        .modal-body {
-            padding: 16px 18px 8px 18px;
-            overflow: auto;
-        }
-
-        .modal-footer {
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            gap: 10px;
-            padding: 12px 18px 16px 18px;
-            background: rgba(255,255,255,0.04);
-        }
-
-        .model-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-        }
-
-        .model-card {
-            background: rgba(255,255,255,0.06);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 12px;
-            padding: 14px;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            grid-template-rows: auto auto auto;
-            gap: 6px 12px;
-        }
-
-        .model-card h5 {
-            margin: 0;
-            font-size: 1.05em;
-            font-weight: 600;
-        }
-
-        .model-desc {
-            grid-column: 1 / -1;
-            opacity: 0.9;
-            font-size: 0.92em;
-        }
-
-        .badges {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            padding: 3px 8px;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.14);
-            font-size: 0.75em;
-            opacity: 0.95;
-        }
-
-        .badge.success { background: rgba(20,170,90,0.18); border-color: rgba(20,170,90,0.35); }
-        .badge.warn { background: rgba(255,180,0,0.18); border-color: rgba(255,180,0,0.35); }
-        .badge.info { background: rgba(90,160,255,0.18); border-color: rgba(90,160,255,0.35); }
-
-        .model-actions {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .ghost-btn {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.18);
-            padding: 8px 12px;
-            border-radius: 10px;
-            color: white;
-            cursor: pointer;
-        }
-
-        .ghost-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .progress {
-            position: relative;
-            height: 8px;
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.12);
-            border-radius: 999px;
-            overflow: hidden;
-        }
-
-        .progress > span {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 30%;
-            background: linear-gradient(90deg, #7aa2ff, #51cf66);
-            animation: progressIndeterminate 1.4s ease-in-out infinite;
-        }
-
+        
+        /* Progress animation */
         @keyframes progressIndeterminate {
             0% { left: -30%; width: 30%; }
             50% { left: 45%; width: 40%; }
             100% { left: 100%; width: 30%; }
         }
-
-        @media (max-width: 700px) {
-            .model-grid { grid-template-columns: 1fr; }
+        
+        .progress-indeterminate {
+            animation: progressIndeterminate 1.4s ease-in-out infinite;
         }
-
-        @keyframes fadeIn {
-            from { 
-                opacity: 0; 
-                transform: translateY(10px); 
-            }
-            to { 
-                opacity: 1; 
-                transform: translateY(0); 
-            }
-        }
-
-        .controls {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
-
-        button {
-            padding: 15px 30px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1.1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-        }
-
-        button:hover {
-            background: rgba(255, 255, 255, 0.3);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-        }
-
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .start-btn {
-            background: linear-gradient(45deg, #51cf66, #40c057);
-        }
-
-        .stop-btn {
-            background: linear-gradient(45deg, #ff6b6b, #fa5252);
-        }
-
-        .transcription-area {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 15px;
-            padding: 25px;
-            min-height: 300px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .transcription-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .transcription-text {
-            font-size: 1.1em;
-            line-height: 1.6;
-            max-height: 250px;
-            overflow-y: auto;
-            padding-right: 10px;
-        }
-
-        .transcription-text::-webkit-scrollbar {
+        
+        /* Custom scrollbar for transcript area */
+        .custom-scrollbar::-webkit-scrollbar {
             width: 6px;
         }
-
-        .transcription-text::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.1);
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(139, 233, 253, 0.1);
             border-radius: 3px;
         }
-
-        .transcription-text::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.3);
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(139, 233, 253, 0.3);
             border-radius: 3px;
-        }
-
-        .transcript-item {
-            margin-bottom: 10px;
-            padding: 8px 12px;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 8px;
-            border-left: 3px solid #51cf66;
-        }
-
-        .transcript-meta {
-            font-size: 0.8em;
-            opacity: 0.7;
-            margin-bottom: 5px;
-        }
-
-        .clear-btn {
-            padding: 8px 16px;
-            font-size: 0.9em;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .footer {
-            text-align: center;
-            margin-top: 20px;
-            opacity: 0.7;
-            font-size: 0.9em;
-        }
-
-        .connection-status {
-            font-size: 0.9em;
-            opacity: 0.8;
-        }
-
-        @media (max-width: 600px) {
-            .container {
-                padding: 20px;
-                margin: 10px;
-            }
-
-            h1 {
-                font-size: 2em;
-            }
-
-            .controls {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            button {
-                width: 100%;
-                max-width: 200px;
-            }
-
-            .status-bar {
-                flex-direction: column;
-                gap: 10px;
-                text-align: center;
-            }
         }
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1>🎵 Audio Transcribe</h1>
-        
-        <div class="status-bar">
-            <div class="status-indicator">
-                <div class="status-dot" id="statusDot"></div>
-                <span id="statusText">Desconectado</span>
+<body class="bg-vim-bg text-vim-text font-mono min-h-screen scanlines relative">
+    <!-- Header tipo barra de estado de Vim -->
+    <header class="bg-vim-surface border-b border-vim-border font-code">
+        <div class="max-w-6xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
+            <div class="flex items-center space-x-4">
+                <span class="text-vim-accent">:transcribe</span>
+                <span class="text-vim-comment">--INSERT--</span>
             </div>
-            <div class="connection-status" id="connectionStatus">
-                Conectando...
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 rounded-full pulse-vim" id="statusDot" style="background-color: #ff6b6b;"></div>
+                    <span id="statusText" class="text-vim-comment">Desconectado</span>
+                </div>
+                <span id="connectionStatus" class="text-vim-comment">Conectando...</span>
             </div>
         </div>
+    </header>
 
-            <div class="device-selector" style="background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-            <h4>🎚️ Dispositivos de Audio</h4>
-            <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
-                <div>
-                    <label for="sourceKind" style="font-size: 0.9em; opacity: 0.9;">Fuente</label><br/>
-                    <select id="sourceKind" style="min-width: 220px; padding: 6px 10px; border-radius: 8px;">
-                        <option value="input">Micrófono / Entrada</option>
-                        <option value="system">Salida del sistema (loopback)</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="inputDevice" style="font-size: 0.9em; opacity: 0.9;">Entrada</label><br/>
-                    <select id="inputDevice" style="min-width: 260px; padding: 6px 10px; border-radius: 8px;"></select>
-                </div>
-                <div>
-                    <label for="outputDevice" style="font-size: 0.9em; opacity: 0.9;">Salida (Windows)</label><br/>
-                    <select id="outputDevice" style="min-width: 260px; padding: 6px 10px; border-radius: 8px;"></select>
-                </div>
-                <button id="refreshDevicesBtn" class="clear-btn" style="height: 36px;" onclick="refreshDevices()">🔄 Actualizar</button>
-            </div>
-            <div id="deviceStatus" style="margin-top: 8px; font-size: 0.85em; opacity: 0.8;"></div>
-        </div>
-
-        <div class="model-selector" style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
-            <h4>🤖 Modelo Whisper Actual</h4>
-            <div id="currentModel" style="font-size: 0.9em; opacity: 0.8;">Cargando...</div>
-            <div style="margin-top: 10px;">
-                <button onclick="showModelSelector()" style="padding: 8px 16px; font-size: 0.9em;">
-                    🔧 Cambiar Modelo
+    <!-- Hero Section -->
+    <section class="max-w-6xl mx-auto px-4 py-8">
+        <div class="text-center mb-8">
+            <h1 class="font-code text-4xl md:text-6xl font-bold text-vim-bright mb-4">
+                <span class="text-vim-accent">></span> Audio Transcribe
+            </h1>
+            <p class="font-mono text-lg text-vim-comment mb-6">
+                Transcripción local en tiempo real con Whisper
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button id="startBtn" onclick="startCapture()" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-code px-8 py-3 rounded-md glow-cyan transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    ▶ Execute Capture
                 </button>
-                <span id="modelStatus" style="margin-left: 10px; font-size: 0.8em;"></span>
-            </div>
-            <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                <div>
-                    <label for="languageSelect" style="font-size: 0.9em; opacity: 0.9;">Idioma</label><br/>
-                    <select id="languageSelect" style="min-width: 220px; padding: 6px 10px; border-radius: 8px;">
-                        <option value="auto">Auto</option>
-                        <option value="spanish" selected>Español</option>
-                        <option value="english">English</option>
-                    </select>
-                </div>
-                <button class="clear-btn" style="height: 36px;" onclick="applyLanguage()">🌐 Aplicar idioma</button>
-                <span id="languageStatus" style="font-size: 0.85em; opacity: 0.8;"></span>
+                <button id="stopBtn" onclick="stopCapture()" disabled
+                        class="bg-red-600 hover:bg-red-700 text-white font-code px-8 py-3 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                    ■ Stop Process
+                </button>
             </div>
         </div>
+    </section>
 
-        <!-- Modal selector de modelos -->
-        <div id="modelModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modelModalTitle">
-            <div class="modal-content">
-                <div class="modal-header">
+    <!-- Features Section -->
+    <section class="max-w-6xl mx-auto px-4 mb-8">
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Audio Devices Configuration Block -->
+            <div class="bg-vim-surface border border-vim-border rounded-lg p-6">
+                <h3 class="font-code text-lg text-vim-bright mb-4 flex items-center">
+                    <span class="text-vim-accent mr-2">//</span> Audio Devices
+                </h3>
+                
+                <div class="space-y-4">
                     <div>
-                        <h3 id="modelModalTitle" style="font-weight:600;">Seleccionar modelo Whisper</h3>
-                        <div id="modelModalHint" style="opacity:0.8; font-size:0.9em;">Elige el balance entre velocidad y precisión según tus recursos.</div>
+                        <label for="sourceKind" class="font-mono text-sm text-vim-comment block mb-1">source_type:</label>
+                        <select id="sourceKind" class="w-full bg-vim-bg border border-vim-border rounded px-3 py-2 text-vim-text font-mono text-sm focus:border-vim-accent focus:outline-none">
+                            <option value="input">microphone_input</option>
+                            <option value="system">system_loopback</option>
+                        </select>
                     </div>
-                    <button class="ghost-btn" onclick="closeModelSelector()">✖</button>
+                    
+                    <div>
+                        <label for="inputDevice" class="font-mono text-sm text-vim-comment block mb-1">input_device:</label>
+                        <select id="inputDevice" class="w-full bg-vim-bg border border-vim-border rounded px-3 py-2 text-vim-text font-mono text-sm focus:border-vim-accent focus:outline-none"></select>
+                    </div>
+                    
+                    <div>
+                        <label for="outputDevice" class="font-mono text-sm text-vim-comment block mb-1">output_device:</label>
+                        <select id="outputDevice" class="w-full bg-vim-bg border border-vim-border rounded px-3 py-2 text-vim-text font-mono text-sm focus:border-vim-accent focus:outline-none"></select>
+                    </div>
+                    
+                    <button onclick="refreshDevices()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
+                        refresh_devices()
+                    </button>
+                    
+                    <div id="deviceStatus" class="font-mono text-xs text-vim-comment mt-2"></div>
                 </div>
-                <div class="modal-body">
-                    <div id="modelsContainer" class="model-grid"></div>
-                </div>
-                <div class="modal-footer">
-                    <span id="modalInfo" style="opacity:0.85; font-size:0.9em; margin-right:auto;"></span>
-                    <button class="ghost-btn" onclick="closeModelSelector()">Cerrar</button>
+            </div>
+
+            <!-- Whisper Model Configuration Block -->
+            <div class="bg-vim-surface border border-vim-border rounded-lg p-6">
+                <h3 class="font-code text-lg text-vim-bright mb-4 flex items-center">
+                    <span class="text-vim-accent mr-2">//</span> Whisper Model
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <span class="font-mono text-sm text-vim-comment">current_model:</span>
+                        <div id="currentModel" class="font-mono text-sm text-vim-text bg-vim-bg border border-vim-border rounded px-3 py-2 mt-1">Cargando...</div>
+                    </div>
+                    
+                    <div>
+                        <label for="languageSelect" class="font-mono text-sm text-vim-comment block mb-1">language:</label>
+                        <select id="languageSelect" class="w-full bg-vim-bg border border-vim-border rounded px-3 py-2 text-vim-text font-mono text-sm focus:border-vim-accent focus:outline-none">
+                            <option value="auto">auto_detect</option>
+                            <option value="spanish" selected>es_ES</option>
+                            <option value="english">en_US</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="showModelSelector()" class="bg-vim-blue hover:bg-blue-600 text-white font-mono px-4 py-2 rounded glow-blue transition-all duration-200">
+                            change_model()
+                        </button>
+                        <button onclick="applyLanguage()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
+                            apply_lang()
+                        </button>
+                    </div>
+                    
+                    <div class="flex space-x-4 text-xs">
+                        <span id="modelStatus" class="font-mono text-vim-comment"></span>
+                        <span id="languageStatus" class="font-mono text-vim-comment"></span>
+                    </div>
                 </div>
             </div>
         </div>
+    </section>
 
-        <div class="controls">
-            <button id="startBtn" class="start-btn" onclick="startCapture()">
-                ▶️ Iniciar Captura
-            </button>
-            <button id="stopBtn" class="stop-btn" onclick="stopCapture()" disabled>
-                ⏹️ Detener Captura
-            </button>
-        </div>
-
-        <div class="transcription-area">
-            <div class="transcription-header">
-                <h3>📝 Transcripción en Tiempo Real</h3>
-                <button class="clear-btn" onclick="clearTranscriptions()">
-                    🗑️ Limpiar
+    <!-- Modal selector de modelos -->
+    <div id="modelModal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50" role="dialog" aria-modal="true" aria-labelledby="modelModalTitle">
+        <div class="bg-vim-surface border border-vim-border rounded-lg max-w-4xl max-h-[80vh] w-full mx-4 flex flex-col overflow-hidden">
+            <div class="flex items-center justify-between p-4 border-b border-vim-border">
+                <div>
+                    <h3 id="modelModalTitle" class="font-code text-lg text-vim-bright">Select Whisper Model</h3>
+                    <div id="modelModalHint" class="font-mono text-sm text-vim-comment">Choose balance between speed and accuracy</div>
+                </div>
+                <button onclick="closeModelSelector()" class="bg-vim-border hover:bg-red-600 text-vim-text hover:text-white px-3 py-1 rounded font-mono transition-colors duration-200">
+                    [X]
                 </button>
             </div>
-            <div class="transcription-text" id="transcriptionText">
-                <div style="opacity: 0.5; text-align: center; margin-top: 50px;">
-                    Presiona "Iniciar Captura" para comenzar la transcripción...
-                </div>
+            <div class="p-4 overflow-auto flex-1">
+                <div id="modelsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
             </div>
-        </div>
-
-        <div class="footer">
-            <p>Transcripción local con Whisper • Sin envío de datos a servidores externos</p>
+            <div class="flex items-center justify-between p-4 border-t border-vim-border">
+                <span id="modalInfo" class="font-mono text-sm text-vim-comment"></span>
+                <button onclick="closeModelSelector()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
+                    close()
+                </button>
+            </div>
         </div>
     </div>
+
+    <!-- Editor/Transcription Section -->
+    <section class="max-w-6xl mx-auto px-4 mb-8">
+        <div class="bg-vim-surface border border-vim-border rounded-lg overflow-hidden">
+            <!-- Editor Header -->
+            <div class="bg-vim-bg border-b border-vim-border px-4 py-2 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <span class="font-code text-sm text-vim-comment">~/transcripts/realtime.log</span>
+                    <span class="font-mono text-xs text-vim-comment">--INSERT--</span>
+                </div>
+                <button onclick="clearTranscriptions()" class="bg-vim-border hover:bg-red-600 text-vim-text hover:text-white px-3 py-1 rounded font-mono text-xs transition-colors duration-200">
+                    :clear
+                </button>
+            </div>
+            
+            <!-- Editor Content -->
+            <div class="p-4">
+                <div id="transcriptionText" class="bg-vim-bg border border-vim-border rounded p-4 min-h-[300px] max-h-[400px] overflow-y-auto custom-scrollbar font-mono text-sm">
+                    <div class="text-vim-comment text-center pt-16">
+                        <span class="text-vim-accent">></span> Press "Execute Capture" to start transcription...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer tipo terminal -->
+    <footer class="bg-vim-surface border-t border-vim-border mt-auto">
+        <div class="max-w-6xl mx-auto px-4 py-4">
+            <div class="flex items-center justify-center space-x-2 font-mono text-sm text-vim-comment">
+                <span>--</span>
+                <span>Local Whisper transcription</span>
+                <span>•</span>
+                <span>No data sent to external servers</span>
+                <span>--</span>
+            </div>
+        </div>
+    </footer>
 
     <script>
         // Estado de la aplicación
@@ -595,14 +399,19 @@
 
         // Actualizar estado de conexión
         function updateConnectionStatus(status, message) {
-            statusDot.className = 'status-dot ' + status;
+            statusDot.className = 'w-2 h-2 rounded-full pulse-vim';
             statusText.textContent = message;
             
             if (status === 'connected') {
-                connectionStatus.textContent = 'Listo para transcribir';
+                statusDot.style.backgroundColor = '#51cf66'; // green
+                connectionStatus.textContent = 'Ready to transcribe';
                 startBtn.disabled = false;
+            } else if (status === 'capturing') {
+                statusDot.style.backgroundColor = '#ffd43b'; // yellow
+                connectionStatus.textContent = 'Capturing audio...';
             } else {
-                connectionStatus.textContent = 'Reconectando...';
+                statusDot.style.backgroundColor = '#ff6b6b'; // red
+                connectionStatus.textContent = 'Reconnecting...';
                 startBtn.disabled = true;
                 stopBtn.disabled = true;
                 updateCaptureStatus(false);
@@ -614,14 +423,12 @@
             isCapturing = capturing;
             
             if (capturing) {
-                statusDot.className = 'status-dot capturing';
-                statusText.textContent = 'Capturando audio...';
+                updateConnectionStatus('capturing', 'Capturing audio...');
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
             } else {
                 if (websocket && websocket.readyState === WebSocket.OPEN) {
-                    statusDot.className = 'status-dot connected';
-                    statusText.textContent = 'Listo para transcribir';
+                    updateConnectionStatus('connected', 'Connected');
                     startBtn.disabled = false;
                 }
                 stopBtn.disabled = true;
@@ -640,30 +447,33 @@
             transcriptions.push(transcription);
             
             const item = document.createElement('div');
-            item.className = 'transcript-item';
+            item.className = 'mb-4 p-3 bg-vim-surface border-l-4 border-vim-accent rounded-r-md';
             
+            // Timestamp header
+            const timestamp = document.createElement('div');
+            timestamp.className = 'font-mono text-xs text-vim-comment mb-1';
+            timestamp.textContent = `[${new Date().toLocaleTimeString()}]`;
+            
+            // Transcription text
+            const text = document.createElement('div');
+            text.className = 'font-mono text-vim-bright mb-2 leading-relaxed';
+            text.textContent = transcription.text;
+            
+            // Metadata footer
             const meta = document.createElement('div');
-            meta.className = 'transcript-meta';
+            meta.className = 'font-mono text-xs text-vim-comment';
             
-            // Mostrar información más detallada
             const confidence = (transcription.confidence * 100).toFixed(0);
             const time = transcription.processing_time.toFixed(2);
             const model = transcription.model || 'unknown';
             const volume = transcription.volume ? transcription.volume.toFixed(3) : 'N/A';
             
-            meta.textContent = `${model} • Conf: ${confidence}% • Tiempo: ${time}s • Vol: ${volume}`;
-            
-            const text = document.createElement('div');
-            text.textContent = transcription.text;
-            text.style.fontWeight = 'bold';
-            text.style.fontSize = '1.1em';
-            
-            // Timestamp
-            const timestamp = document.createElement('div');
-            timestamp.className = 'transcript-meta';
-            timestamp.textContent = new Date().toLocaleTimeString();
-            timestamp.style.fontSize = '0.8em';
-            timestamp.style.opacity = '0.6';
+            meta.innerHTML = `
+                <span class="text-vim-accent">${model}</span> • 
+                confidence: <span class="text-vim-text">${confidence}%</span> • 
+                time: <span class="text-vim-text">${time}s</span> • 
+                volume: <span class="text-vim-text">${volume}</span>
+            `;
             
             item.appendChild(timestamp);
             item.appendChild(text);
@@ -677,16 +487,22 @@
             transcriptionText.appendChild(item);
             transcriptionText.scrollTop = transcriptionText.scrollHeight;
             
-            // Animación de entrada
-            item.style.animation = 'fadeIn 0.3s ease-in';
+            // Animación de entrada suave
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                item.style.transition = 'all 0.3s ease';
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0)';
+            }, 10);
         }
 
         // Limpiar transcripciones
         function clearTranscriptions() {
             transcriptions = [];
             transcriptionText.innerHTML = `
-                <div style="opacity: 0.5; text-align: center; margin-top: 50px;">
-                    Presiona "Iniciar Captura" para comenzar la transcripción...
+                <div class="text-vim-comment text-center pt-16">
+                    <span class="text-vim-accent">></span> Press "Execute Capture" to start transcription...
                 </div>
             `;
         }
@@ -843,67 +659,86 @@
             const entries = Object.entries(models);
             entries.forEach(([id, info]) => {
                 const card = document.createElement('div');
-                card.className = 'model-card';
+                card.className = 'bg-vim-bg border border-vim-border rounded-lg p-4 hover:border-vim-accent transition-colors duration-200';
 
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between mb-2';
+                
                 const title = document.createElement('h5');
-                title.textContent = `${id.toUpperCase()} • ${info.size_mb}MB`;
+                title.className = 'font-code text-vim-bright';
+                title.textContent = `${id.toUpperCase()}`;
+                
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'flex space-x-2 text-xs';
+                
+                const sizeSpan = document.createElement('span');
+                sizeSpan.className = 'text-vim-comment';
+                sizeSpan.textContent = `${info.size_mb}MB`;
+                statusDiv.appendChild(sizeSpan);
+                
+                const downloadSpan = document.createElement('span');
+                downloadSpan.textContent = info.downloaded ? '✅' : '📥';
+                statusDiv.appendChild(downloadSpan);
+                
+                if (info.is_current) {
+                    const currentSpan = document.createElement('span');
+                    currentSpan.className = 'text-vim-accent font-mono';
+                    currentSpan.textContent = 'ACTIVE';
+                    statusDiv.appendChild(currentSpan);
+                }
+                
+                header.appendChild(title);
+                header.appendChild(statusDiv);
 
-                const badges = document.createElement('div');
-                badges.className = 'badges';
-                const b1 = document.createElement('span');
-                b1.className = 'badge info';
-                b1.textContent = `${info.speed || ''} speed`;
-                const b2 = document.createElement('span');
-                b2.className = 'badge info';
-                b2.textContent = `${info.accuracy || ''} accuracy`;
-                const b3 = document.createElement('span');
-                b3.className = `badge ${info.is_current ? 'success' : ''}`;
-                b3.textContent = info.is_current ? 'Actual' : (info.downloaded ? 'Descargado' : 'No descargado');
-                const b4 = document.createElement('span');
-                b4.className = 'badge';
-                b4.textContent = `Descarga: ${info.estimated_download_time || '~'}`;
-                badges.appendChild(b1); badges.appendChild(b2); badges.appendChild(b3); badges.appendChild(b4);
-
-                const desc = document.createElement('div');
-                desc.className = 'model-desc';
+                const desc = document.createElement('p');
+                desc.className = 'font-mono text-sm text-vim-comment mb-3';
                 desc.textContent = `${info.description} • ${info.recommended_for || ''}`;
 
-                const actions = document.createElement('div');
-                actions.className = 'model-actions';
+                const footer = document.createElement('div');
+                footer.className = 'flex items-center justify-between';
+                
+                const speedSpan = document.createElement('span');
+                speedSpan.className = 'font-mono text-xs text-vim-comment';
+                speedSpan.textContent = `${info.speed || 'medium'} speed`;
+                
+                const actionDiv = document.createElement('div');
+                actionDiv.className = 'flex space-x-2';
+                
                 const loadBtn = document.createElement('button');
-                loadBtn.className = 'ghost-btn';
-                loadBtn.textContent = info.is_current ? 'En uso' : 'Cargar';
+                loadBtn.className = `bg-vim-blue hover:bg-blue-600 text-white font-mono px-3 py-1 rounded text-xs transition-colors duration-200 ${info.is_current ? 'opacity-50 cursor-not-allowed' : ''}`;
+                loadBtn.textContent = info.is_current ? 'active' : 'load()';
+                loadBtn.onclick = async () => await ensureLoadedThenActivate(id, info);
                 loadBtn.disabled = !!info.is_current;
-                loadBtn.onclick = async () => {
-                    await ensureLoadedThenActivate(id, info);
-                };
 
-                const dlBtn = document.createElement('button');
-                dlBtn.className = 'ghost-btn';
-                dlBtn.textContent = info.downloaded ? 'Descargado' : 'Descargar';
-                dlBtn.disabled = !!info.downloaded;
-                dlBtn.onclick = async () => {
-                    await downloadModel(id, info);
-                };
+                actionDiv.appendChild(loadBtn);
+                
+                if (!info.downloaded) {
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-3 py-1 rounded text-xs transition-colors duration-200';
+                    downloadBtn.textContent = 'download()';
+                    downloadBtn.onclick = async () => await downloadModel(id, info);
+                    actionDiv.appendChild(downloadBtn);
+                }
+                
+                footer.appendChild(speedSpan);
+                footer.appendChild(actionDiv);
 
-                actions.appendChild(loadBtn);
-                actions.appendChild(dlBtn);
-
-                card.appendChild(title);
-                card.appendChild(badges);
+                card.appendChild(header);
                 card.appendChild(desc);
-                card.appendChild(actions);
+                card.appendChild(footer);
                 modelsContainer.appendChild(card);
             });
         }
 
         function openModelSelector() {
-            modelModal.classList.add('show');
+            modelModal.classList.remove('hidden');
+            modelModal.classList.add('flex');
             document.addEventListener('keydown', handleEscModal);
         }
 
         function closeModelSelector() {
-            modelModal.classList.remove('show');
+            modelModal.classList.add('hidden');
+            modelModal.classList.remove('flex');
             document.removeEventListener('keydown', handleEscModal);
         }
 
