@@ -13,3 +13,10 @@ dependencies = [
     "websockets>=15.0.1",
     "PyAudioWPatch>=0.2.12.5; sys_platform=='win32'",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.3.0",
+    "black>=24.0.0",
+    "mypy>=1.8.0",
+]
