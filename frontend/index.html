@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Transcribe - Transcripción en Tiempo Real</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b6b;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #51cf66;
+        }
+
+        .status-dot.capturing {
+            background: #ffd43b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(10px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 15px 30px;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .start-btn {
+            background: linear-gradient(45deg, #51cf66, #40c057);
+        }
+
+        .stop-btn {
+            background: linear-gradient(45deg, #ff6b6b, #fa5252);
+        }
+
+        .transcription-area {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            min-height: 300px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .transcription-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .transcription-text {
+            font-size: 1.1em;
+            line-height: 1.6;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .transcription-text::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .transcription-text::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .transcription-text::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 3px;
+        }
+
+        .transcript-item {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            border-left: 3px solid #51cf66;
+        }
+
+        .transcript-meta {
+            font-size: 0.8em;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+
+        .clear-btn {
+            padding: 8px 16px;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        .connection-status {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            button {
+                width: 100%;
+                max-width: 200px;
+            }
+
+            .status-bar {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Audio Transcribe</h1>
+        
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Desconectado</span>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                Conectando...
+            </div>
+        </div>
+
+        <div class="model-selector" style="background: rgba(0, 0, 0, 0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+            <h4>🤖 Modelo Whisper Actual</h4>
+            <div id="currentModel" style="font-size: 0.9em; opacity: 0.8;">Cargando...</div>
+            <div style="margin-top: 10px;">
+                <button onclick="showModelSelector()" style="padding: 8px 16px; font-size: 0.9em;">
+                    🔧 Cambiar Modelo
+                </button>
+                <span id="modelStatus" style="margin-left: 10px; font-size: 0.8em;"></span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startBtn" class="start-btn" onclick="startCapture()">
+                ▶️ Iniciar Captura
+            </button>
+            <button id="stopBtn" class="stop-btn" onclick="stopCapture()" disabled>
+                ⏹️ Detener Captura
+            </button>
+        </div>
+
+        <div class="transcription-area">
+            <div class="transcription-header">
+                <h3>📝 Transcripción en Tiempo Real</h3>
+                <button class="clear-btn" onclick="clearTranscriptions()">
+                    🗑️ Limpiar
+                </button>
+            </div>
+            <div class="transcription-text" id="transcriptionText">
+                <div style="opacity: 0.5; text-align: center; margin-top: 50px;">
+                    Presiona "Iniciar Captura" para comenzar la transcripción...
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Transcripción local con Whisper • Sin envío de datos a servidores externos</p>
+        </div>
+    </div>
+
+    <script>
+        // Estado de la aplicación
+        let isCapturing = false;
+        let websocket = null;
+        let transcriptions = [];
+        
+        // Referencias DOM
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const transcriptionText = document.getElementById('transcriptionText');
+
+        // Configuración
+        const API_BASE = 'http://127.0.0.1:8000';
+        const WS_URL = 'ws://127.0.0.1:8000/ws';
+
+        // Conectar WebSocket
+        function connectWebSocket() {
+            try {
+                websocket = new WebSocket(WS_URL);
+                
+                websocket.onopen = function(event) {
+                    console.log('WebSocket conectado');
+                    updateConnectionStatus('connected', 'Conectado al servidor');
+                };
+                
+                websocket.onmessage = function(event) {
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
+                };
+                
+                websocket.onclose = function(event) {
+                    console.log('WebSocket cerrado');
+                    updateConnectionStatus('disconnected', 'Desconectado');
+                    
+                    // Reconectar automáticamente después de 3 segundos
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                websocket.onerror = function(error) {
+                    console.error('Error WebSocket:', error);
+                    updateConnectionStatus('error', 'Error de conexión');
+                };
+                
+            } catch (error) {
+                console.error('Error conectando WebSocket:', error);
+                updateConnectionStatus('error', 'Error de conexión');
+                
+                // Intentar reconectar
+                setTimeout(connectWebSocket, 3000);
+            }
+        }
+
+        // Manejar mensajes WebSocket
+        function handleWebSocketMessage(data) {
+            console.log('📨 Mensaje WebSocket recibido:', data);
+            
+            switch(data.type) {
+                case 'status':
+                    console.log('📊 Mensaje de status:', data.data);
+                    if (data.data.is_capturing) {
+                        updateCaptureStatus(true);
+                    }
+                    break;
+                    
+                case 'transcription':
+                    console.log('🎤 Mensaje de transcripción:', data.data);
+                    addTranscription(data.data);
+                    break;
+                    
+                case 'response':
+                    console.log('💬 Respuesta de comando:', data);
+                    handleCommandResponse(data);
+                    break;
+                    
+                default:
+                    console.log('❓ Tipo de mensaje desconocido:', data.type);
+            }
+        }
+
+        // Manejar respuestas de comandos
+        function handleCommandResponse(data) {
+            const { command, data: result } = data;
+            
+            if (command === 'start_capture') {
+                if (result.success) {
+                    updateCaptureStatus(true);
+                } else {
+                    alert('Error iniciando captura: ' + result.message);
+                }
+            } else if (command === 'stop_capture') {
+                if (result.success) {
+                    updateCaptureStatus(false);
+                } else {
+                    alert('Error deteniendo captura: ' + result.message);
+                }
+            }
+        }
+
+        // Actualizar estado de conexión
+        function updateConnectionStatus(status, message) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = message;
+            
+            if (status === 'connected') {
+                connectionStatus.textContent = 'Listo para transcribir';
+                startBtn.disabled = false;
+            } else {
+                connectionStatus.textContent = 'Reconectando...';
+                startBtn.disabled = true;
+                stopBtn.disabled = true;
+                updateCaptureStatus(false);
+            }
+        }
+
+        // Actualizar estado de captura
+        function updateCaptureStatus(capturing) {
+            isCapturing = capturing;
+            
+            if (capturing) {
+                statusDot.className = 'status-dot capturing';
+                statusText.textContent = 'Capturando audio...';
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+            } else {
+                if (websocket && websocket.readyState === WebSocket.OPEN) {
+                    statusDot.className = 'status-dot connected';
+                    statusText.textContent = 'Listo para transcribir';
+                    startBtn.disabled = false;
+                }
+                stopBtn.disabled = true;
+            }
+        }
+
+        // Agregar transcripción
+        function addTranscription(transcription) {
+            console.log('📝 Nueva transcripción recibida:', transcription);
+            
+            if (!transcription.text || !transcription.text.trim()) {
+                console.log('🔇 Transcripción vacía, ignorando');
+                return;
+            }
+            
+            transcriptions.push(transcription);
+            
+            const item = document.createElement('div');
+            item.className = 'transcript-item';
+            
+            const meta = document.createElement('div');
+            meta.className = 'transcript-meta';
+            
+            // Mostrar información más detallada
+            const confidence = (transcription.confidence * 100).toFixed(0);
+            const time = transcription.processing_time.toFixed(2);
+            const model = transcription.model || 'unknown';
+            const volume = transcription.volume ? transcription.volume.toFixed(3) : 'N/A';
+            
+            meta.textContent = `${model} • Conf: ${confidence}% • Tiempo: ${time}s • Vol: ${volume}`;
+            
+            const text = document.createElement('div');
+            text.textContent = transcription.text;
+            text.style.fontWeight = 'bold';
+            text.style.fontSize = '1.1em';
+            
+            // Timestamp
+            const timestamp = document.createElement('div');
+            timestamp.className = 'transcript-meta';
+            timestamp.textContent = new Date().toLocaleTimeString();
+            timestamp.style.fontSize = '0.8em';
+            timestamp.style.opacity = '0.6';
+            
+            item.appendChild(timestamp);
+            item.appendChild(text);
+            item.appendChild(meta);
+            
+            // Limpiar mensaje placeholder
+            if (transcriptions.length === 1) {
+                transcriptionText.innerHTML = '';
+            }
+            
+            transcriptionText.appendChild(item);
+            transcriptionText.scrollTop = transcriptionText.scrollHeight;
+            
+            // Animación de entrada
+            item.style.animation = 'fadeIn 0.3s ease-in';
+        }
+
+        // Limpiar transcripciones
+        function clearTranscriptions() {
+            transcriptions = [];
+            transcriptionText.innerHTML = `
+                <div style="opacity: 0.5; text-align: center; margin-top: 50px;">
+                    Presiona "Iniciar Captura" para comenzar la transcripción...
+                </div>
+            `;
+        }
+
+        // Iniciar captura
+        function startCapture() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const command = {
+                    command: 'start_capture'
+                };
+                websocket.send(JSON.stringify(command));
+            } else {
+                alert('WebSocket no conectado');
+            }
+        }
+
+        // Detener captura
+        function stopCapture() {
+            if (websocket && websocket.readyState === WebSocket.OPEN) {
+                const command = {
+                    command: 'stop_capture'
+                };
+                websocket.send(JSON.stringify(command));
+            } else {
+                alert('WebSocket no conectado');
+            }
+        }
+
+        // Funciones para gestión de modelos
+        async function loadModelInfo() {
+            try {
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+                
+                if (data.transcriber) {
+                    const modelInfo = data.transcriber;
+                    document.getElementById('currentModel').textContent = 
+                        `${modelInfo.model_name || modelInfo.model_id || 'unknown'} (${modelInfo.device || 'unknown'})`;
+                }
+            } catch (error) {
+                console.error('Error cargando info del modelo:', error);
+            }
+        }
+
+        async function showModelSelector() {
+            try {
+                const response = await fetch(`${API_BASE}/models`);
+                const models = await response.json();
+                
+                let modelList = '🤖 Modelos Disponibles:\\n\\n';
+                for (const [id, info] of Object.entries(models)) {
+                    const status = info.downloaded ? '✅' : '📥';
+                    const current = info.is_current ? ' (ACTUAL)' : '';
+                    modelList += `${id}: ${info.description} - ${info.size_mb}MB ${status}${current}\\n`;
+                }
+                
+                const selectedModel = prompt(modelList + '\\nEscribe el ID del modelo a cargar (tiny, base, small, medium, large):');
+                
+                if (selectedModel && models[selectedModel]) {
+                    await loadModel(selectedModel);
+                }
+                
+            } catch (error) {
+                console.error('Error mostrando selector de modelos:', error);
+                alert('Error obteniendo lista de modelos');
+            }
+        }
+
+        async function loadModel(modelId) {
+            try {
+                document.getElementById('modelStatus').textContent = 'Cargando...';
+                
+                const response = await fetch(`${API_BASE}/models/${modelId}/load`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('modelStatus').textContent = '✅ Cargado';
+                    setTimeout(() => {
+                        document.getElementById('modelStatus').textContent = '';
+                        loadModelInfo();
+                    }, 2000);
+                } else {
+                    document.getElementById('modelStatus').textContent = '❌ Error';
+                    alert('Error cargando modelo: ' + result.message);
+                }
+                
+            } catch (error) {
+                console.error('Error cargando modelo:', error);
+                document.getElementById('modelStatus').textContent = '❌ Error';
+                alert('Error cargando modelo');
+            }
+        }
+
+        // Inicializar aplicación
+        function init() {
+            console.log('Iniciando Audio Transcribe Frontend...');
+            updateConnectionStatus('disconnected', 'Conectando...');
+            connectWebSocket();
+            loadModelInfo();
+        }
+
+        // Iniciar cuando la página esté cargada
+        document.addEventListener('DOMContentLoaded', init);
+
+        // Limpiar al cerrar
+        window.addEventListener('beforeunload', function() {
+            if (websocket) {
+                websocket.close();
+            }
+        });
+    </script>
+</body>
+</html>

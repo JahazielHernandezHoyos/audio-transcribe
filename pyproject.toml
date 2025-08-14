@@ -1,0 +1,14 @@
+[project]
+name = "audio-transcribe"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.116.1",
+    "numpy>=2.3.2",
+    "sounddevice>=0.5.2",
+    "torch>=2.0.0",
+    "transformers>=4.30.0",
+    "uvicorn>=0.35.0",
+    "websockets>=15.0.1",
+]

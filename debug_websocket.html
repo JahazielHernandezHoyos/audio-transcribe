@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug WebSocket</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .log { background: #f0f0f0; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .transcription { background: #e8f5e8; padding: 10px; margin: 5px 0; border-radius: 5px; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Debug WebSocket - Audio Transcribe</h1>
+    
+    <div>
+        <button onclick="connectWS()">Conectar WebSocket</button>
+        <button onclick="disconnectWS()">Desconectar WebSocket</button>
+        <button onclick="addTestTranscription()">Agregar Transcripción de Prueba</button>
+    </div>
+    
+    <div id="status">Desconectado</div>
+    
+    <h3>📨 Mensajes Recibidos:</h3>
+    <div id="messages"></div>
+    
+    <h3>📝 Transcripciones:</h3>
+    <div id="transcriptions"></div>
+
+    <script>
+        let websocket = null;
+        const statusDiv = document.getElementById('status');
+        const messagesDiv = document.getElementById('messages');
+        const transcriptionsDiv = document.getElementById('transcriptions');
+
+        function log(message) {
+            console.log(message);
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log';
+            logDiv.textContent = new Date().toLocaleTimeString() + ': ' + message;
+            messagesDiv.appendChild(logDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addTranscription(text, meta = '') {
+            const transDiv = document.createElement('div');
+            transDiv.className = 'transcription';
+            transDiv.innerHTML = `<strong>${text}</strong><br><small>${meta}</small>`;
+            transcriptionsDiv.appendChild(transDiv);
+            transcriptionsDiv.scrollTop = transcriptionsDiv.scrollHeight;
+        }
+
+        function connectWS() {
+            if (websocket) {
+                log('WebSocket ya está conectado');
+                return;
+            }
+
+            try {
+                websocket = new WebSocket('ws://127.0.0.1:8000/ws');
+                
+                websocket.onopen = function(event) {
+                    log('✅ WebSocket conectado');
+                    statusDiv.textContent = 'Conectado';
+                    statusDiv.style.color = 'green';
+                };
+                
+                websocket.onmessage = function(event) {
+                    log('📨 Mensaje recibido: ' + event.data);
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        log('📊 Tipo de mensaje: ' + data.type);
+                        
+                        if (data.type === 'transcription') {
+                            const transcription = data.data;
+                            const meta = `Confianza: ${(transcription.confidence * 100).toFixed(0)}%, Tiempo: ${transcription.processing_time?.toFixed(2)}s, Modelo: ${transcription.model || 'unknown'}`;
+                            addTranscription(transcription.text, meta);
+                            log('📝 Transcripción agregada: ' + transcription.text);
+                        }
+                    } catch (e) {
+                        log('❌ Error parseando mensaje: ' + e.message);
+                    }
+                };
+                
+                websocket.onclose = function(event) {
+                    log('🔌 WebSocket cerrado: ' + event.code + ' - ' + event.reason);
+                    statusDiv.textContent = 'Desconectado';
+                    statusDiv.style.color = 'red';
+                    websocket = null;
+                };
+                
+                websocket.onerror = function(error) {
+                    log('❌ Error WebSocket: ' + error);
+                    statusDiv.textContent = 'Error';
+                    statusDiv.style.color = 'red';
+                };
+                
+            } catch (error) {
+                log('❌ Error creando WebSocket: ' + error.message);
+            }
+        }
+
+        function disconnectWS() {
+            if (websocket) {
+                websocket.close();
+                websocket = null;
+                log('🔌 WebSocket desconectado manualmente');
+            }
+        }
+
+        async function addTestTranscription() {
+            try {
+                const response = await fetch('http://127.0.0.1:8000/debug/add_transcription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        text: 'Test desde navegador ' + new Date().toLocaleTimeString(),
+                        confidence: Math.random(),
+                        processing_time: Math.random() * 0.5,
+                        model: 'tiny'
+                    })
+                });
+                
+                const result = await response.json();
+                log('🧪 Transcripción de prueba enviada: ' + result.message);
+                
+            } catch (error) {
+                log('❌ Error enviando transcripción de prueba: ' + error.message);
+            }
+        }
+
+        // Auto-conectar al cargar
+        window.addEventListener('load', function() {
+            log('🚀 Página cargada, conectando WebSocket...');
+            connectWS();
+        });
+    </script>
+</body>
+</html>
