@@ -3,13 +3,14 @@ Módulo para captura de audio del sistema multiplataforma.
 Soporta Windows (PyAudioWPatch) y Linux (sounddevice).
 """
 
-import platform
-import numpy as np
-import threading
-import queue
-import time
-from typing import Optional, Callable
 import logging
+import platform
+import queue
+import threading
+import time
+from collections.abc import Callable
+
+import numpy as np
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -17,17 +18,16 @@ logger = logging.getLogger(__name__)
 
 class AudioCaptureError(Exception):
     """Excepción personalizada para errores de captura de audio."""
-    pass
 
 class AudioCapture:
     """
     Clase para capturar audio del sistema de forma multiplataforma.
     """
-    
+
     def __init__(self, sample_rate: int = 16000, chunk_size: int = 1024):
         """
         Inicializar capturador de audio.
-        
+
         Args:
             sample_rate: Frecuencia de muestreo en Hz (16kHz es óptimo para Whisper)
             chunk_size: Tamaño del buffer en samples
@@ -38,46 +38,43 @@ class AudioCapture:
         self.audio_queue = queue.Queue()
         self.capture_thread = None
         self.platform = platform.system().lower()
-        
+
         logger.info(f"Inicializando AudioCapture para {self.platform}")
         logger.info(f"Sample rate: {sample_rate}Hz, Chunk size: {chunk_size}")
-        
-    def _capture_linux(self, callback: Optional[Callable] = None):
+
+    def _capture_linux(self, callback: Callable | None = None):
         """
         Captura de audio en Linux usando sounddevice.
-        
+
         Args:
             callback: Función opcional para procesar chunks en tiempo real
         """
         try:
             import sounddevice as sd
-            
+
             # Listar dispositivos disponibles para debug
             logger.info("Dispositivos de audio disponibles:")
             logger.info(sd.query_devices())
-            
+
             # Configurar dispositivo por defecto
-            device_info = sd.query_devices(kind='input')
+            device_info = sd.query_devices(kind="input")
             logger.info(f"Dispositivo de entrada por defecto: {device_info}")
-            
+
             def audio_callback(indata, frames, time, status):
                 """Callback para procesar audio capturado."""
                 if status:
                     logger.warning(f"Audio callback status: {status}")
-                
+
                 # Convertir a mono si es estéreo
-                if indata.shape[1] > 1:
-                    audio_data = np.mean(indata, axis=1)
-                else:
-                    audio_data = indata[:, 0]
-                
+                audio_data = np.mean(indata, axis=1) if indata.shape[1] > 1 else indata[:, 0]
+
                 # Agregar a la cola
                 self.audio_queue.put(audio_data.copy())
-                
+
                 # Llamar callback personalizado si existe
                 if callback:
                     callback(audio_data)
-            
+
             # Iniciar captura
             with sd.InputStream(
                 samplerate=self.sample_rate,
@@ -89,52 +86,52 @@ class AudioCapture:
                 logger.info("Captura de audio iniciada en Linux")
                 while self.is_capturing:
                     time.sleep(0.1)
-                    
-        except ImportError:
-            raise AudioCaptureError("sounddevice no está instalado")
+
+        except ImportError as err:
+            raise AudioCaptureError("sounddevice no está instalado") from err
         except Exception as e:
-            raise AudioCaptureError(f"Error en captura Linux: {e}")
-    
-    def _capture_windows(self, callback: Optional[Callable] = None):
+            raise AudioCaptureError(f"Error en captura Linux: {e}") from e
+
+    def _capture_windows(self, callback: Callable | None = None):
         """
         Captura de audio en Windows usando PyAudioWPatch.
-        
+
         Args:
             callback: Función opcional para procesar chunks en tiempo real
         """
         try:
-            import PyAudioWPatch as pyaudio
-            
+            import PyAudioWPatch
+
             # Configurar PyAudio
-            audio = pyaudio.PyAudio()
-            
+            audio = PyAudioWPatch.PyAudio()
+
             logger.info("🔍 Buscando dispositivos de audio en Windows...")
-            
+
             # Buscar dispositivo loopback (WASAPI)
             wasapi_info = None
             devices_found = []
-            
+
             for i in range(audio.get_device_count()):
                 device_info = audio.get_device_info_by_index(i)
                 devices_found.append(f"  {i}: {device_info['name']} ({device_info['maxInputChannels']} in)")
-                
+
                 # Priorizar loopback WASAPI
-                if ("loopback" in device_info["name"].lower() and 
+                if ("loopback" in device_info["name"].lower() and
                     device_info["maxInputChannels"] > 0):
                     wasapi_info = device_info
                     logger.info(f"✅ Encontrado dispositivo loopback: {device_info['name']}")
                     break
-                
+
                 # Fallback: cualquier dispositivo WASAPI con entrada
                 if (device_info["hostApi"] == 3 and  # WASAPI
                     device_info["maxInputChannels"] > 0 and
                     not wasapi_info):
                     wasapi_info = device_info
-            
+
             logger.info("📋 Dispositivos de audio encontrados:")
             for device in devices_found:
                 logger.info(device)
-            
+
             if not wasapi_info:
                 logger.warning("⚠️ No se encontró dispositivo loopback, usando micrófono por defecto")
                 try:
@@ -142,35 +139,35 @@ class AudioCapture:
                 except Exception as e:
                     logger.error(f"Error obteniendo dispositivo por defecto: {e}")
                     audio.terminate()
-                    raise AudioCaptureError("No se pudo encontrar ningún dispositivo de entrada")
-            
+                    raise AudioCaptureError("No se pudo encontrar ningún dispositivo de entrada") from e
+
             logger.info(f"🎤 Usando dispositivo: {wasapi_info['name']}")
-            
+
             def audio_callback(in_data, frame_count, time_info, status):
                 """Callback para procesar audio capturado."""
                 if status:
                     logger.warning(f"⚠️ Audio callback status: {status}")
-                
+
                 try:
                     # Convertir bytes a numpy array
                     audio_data = np.frombuffer(in_data, dtype=np.float32)
-                    
+
                     # Agregar a la cola
                     self.audio_queue.put(audio_data.copy())
-                    
+
                     # Llamar callback personalizado si existe
                     if callback:
                         callback(audio_data)
-                        
+
                 except Exception as e:
                     logger.error(f"Error en audio callback: {e}")
-                
-                return (None, pyaudio.paContinue)
-            
+
+                return (None, PyAudioWPatch.paContinue)
+
             # Iniciar stream con configuración robusta
             try:
                 stream = audio.open(
-                    format=pyaudio.paFloat32,
+                    format=PyAudioWPatch.paFloat32,
                     channels=1,
                     rate=self.sample_rate,
                     input=True,
@@ -178,23 +175,23 @@ class AudioCapture:
                     frames_per_buffer=self.chunk_size,
                     stream_callback=audio_callback
                 )
-                
+
                 stream.start_stream()
                 logger.info("🎵 Captura de audio iniciada en Windows (WASAPI)")
-                
+
                 while self.is_capturing and stream.is_active():
                     time.sleep(0.1)
-                
+
                 stream.stop_stream()
                 stream.close()
                 logger.info("⏹️ Stream de audio cerrado")
-                
+
             except Exception as e:
                 logger.error(f"Error configurando stream de audio: {e}")
                 raise
             finally:
                 audio.terminate()
-            
+
         except ImportError as e:
             error_msg = """
 PyAudioWPatch no está instalado. Para Windows necesitas:
@@ -209,25 +206,25 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
    uv sync
 """
             logger.error(error_msg)
-            raise AudioCaptureError(f"PyAudioWPatch requerido para Windows: {e}")
-            
+            raise AudioCaptureError(f"PyAudioWPatch requerido para Windows: {e}") from e
+
         except Exception as e:
             logger.error(f"Error en captura Windows: {e}")
-            raise AudioCaptureError(f"Error en captura Windows: {e}")
-    
-    def start_capture(self, callback: Optional[Callable] = None):
+            raise AudioCaptureError(f"Error en captura Windows: {e}") from e
+
+    def start_capture(self, callback: Callable | None = None):
         """
         Iniciar captura de audio.
-        
+
         Args:
             callback: Función opcional para procesar chunks en tiempo real
         """
         if self.is_capturing:
             logger.warning("La captura ya está activa")
             return
-        
+
         self.is_capturing = True
-        
+
         # Seleccionar método según plataforma
         if self.platform == "windows":
             capture_func = self._capture_windows
@@ -235,37 +232,37 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
             capture_func = self._capture_linux
         else:
             raise AudioCaptureError(f"Plataforma {self.platform} no soportada")
-        
+
         # Iniciar thread de captura
         self.capture_thread = threading.Thread(
-            target=capture_func, 
+            target=capture_func,
             args=(callback,),
             daemon=True
         )
         self.capture_thread.start()
-        
+
         logger.info("Captura de audio iniciada")
-    
+
     def stop_capture(self):
         """Detener captura de audio."""
         if not self.is_capturing:
             logger.warning("La captura no está activa")
             return
-        
+
         self.is_capturing = False
-        
+
         if self.capture_thread:
             self.capture_thread.join(timeout=2.0)
-        
+
         logger.info("Captura de audio detenida")
-    
-    def get_audio_chunk(self, timeout: float = 1.0) -> Optional[np.ndarray]:
+
+    def get_audio_chunk(self, timeout: float = 1.0) -> np.ndarray | None:
         """
         Obtener chunk de audio de la cola.
-        
+
         Args:
             timeout: Tiempo máximo de espera en segundos
-            
+
         Returns:
             Array de numpy con datos de audio o None si timeout
         """
@@ -273,11 +270,11 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
             return self.audio_queue.get(timeout=timeout)
         except queue.Empty:
             return None
-    
+
     def get_buffer_size(self) -> int:
         """Obtener tamaño actual del buffer."""
         return self.audio_queue.qsize()
-    
+
     def clear_buffer(self):
         """Limpiar buffer de audio."""
         while not self.audio_queue.empty():
@@ -290,32 +287,32 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
 def test_audio_capture():
     """Función de test para verificar captura de audio."""
     print("🎵 Iniciando test de captura de audio...")
-    
+
     capture = AudioCapture(sample_rate=16000, chunk_size=1024)
-    
+
     def audio_callback(data):
         """Callback para mostrar estadísticas de audio."""
         volume = np.sqrt(np.mean(data**2))
         if volume > 0.01:  # Solo mostrar si hay sonido
             print(f"📊 Audio detectado - Volumen: {volume:.4f}")
-    
+
     try:
         # Iniciar captura
         capture.start_capture(callback=audio_callback)
-        
+
         print("🔴 Capturando audio... (presiona Ctrl+C para detener)")
         print("💡 Reproduce algo de audio para ver la detección")
-        
+
         # Capturar por 10 segundos o hasta Ctrl+C
-        for i in range(100):
+        for _i in range(100):
             time.sleep(0.1)
             buffer_size = capture.get_buffer_size()
             if buffer_size > 0:
                 print(f"📦 Buffer: {buffer_size} chunks")
-    
+
     except KeyboardInterrupt:
         print("\n⏹️ Deteniendo captura...")
-    
+
     finally:
         capture.stop_capture()
         print("✅ Test completado")

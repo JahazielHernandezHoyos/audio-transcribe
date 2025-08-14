@@ -16,7 +16,35 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "ruff>=0.3.0",
-    "black>=24.0.0",
-    "mypy>=1.8.0",
+    "ruff>=0.4.7",
 ]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "F",  # pyflakes
+    "I",  # isort
+    "UP", # pyupgrade
+    "B",  # flake8-bugbear
+    "Q",  # flake8-quotes
+    "W",  # pycodestyle warnings
+    "N",  # pep8-naming
+    "A",  # flake8-builtins
+    "C4", # flake8-comprehensions
+    "PIE",# flake8-pie
+    "RET",# flake8-return
+    "SIM",# flake8-simplify
+    "PTH",# flake8-use-pathlib
+]
+ignore = [
+    "E203", # whitespace before ':' (formatter conflict)
+    "E501", # line length (handled by line-length)
+    "D",    # pydocstyle (docstrings enforced separately)
+    "ANN",  # type-annotation rules (too strict for now)
+]
+
+ 
