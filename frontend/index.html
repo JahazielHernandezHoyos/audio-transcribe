@@ -554,15 +554,17 @@
 
         async function showModelSelector() {
             try {
-                modalInfo.textContent = 'Cargando modelos...';
+                console.log('Opening model selector modal...');
+                modalInfo.textContent = 'Loading models...';
                 openModelSelector();
                 const response = await fetch(`${API_BASE}/models`);
                 const models = await response.json();
+                console.log('Models loaded:', models);
                 renderModels(models);
-                modalInfo.textContent = 'Consejo: "tiny" es más rápido; "large" es más preciso.';
+                modalInfo.textContent = 'Tip: "tiny" is faster; "large" is more accurate.';
             } catch (error) {
-                console.error('Error mostrando selector de modelos:', error);
-                modalInfo.textContent = 'Error obteniendo lista de modelos';
+                console.error('Error showing model selector:', error);
+                modalInfo.textContent = 'Error loading models list';
             }
         }
 
@@ -731,8 +733,11 @@
         }
 
         function openModelSelector() {
+            console.log('openModelSelector called, modal element:', modelModal);
+            console.log('Modal classes before:', modelModal.className);
             modelModal.classList.remove('hidden');
             modelModal.classList.add('flex');
+            console.log('Modal classes after:', modelModal.className);
             document.addEventListener('keydown', handleEscModal);
         }
 
