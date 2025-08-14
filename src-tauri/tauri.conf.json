@@ -13,7 +13,6 @@
     "windows": [
       { "title": "Audio Transcribe", "width": 1200, "height": 800 }
     ],
-    "allowlist": { "shell": { "all": false, "sidecar": true } },
     "security": { "csp": null }
   },
   "bundle": {
@@ -22,7 +21,12 @@
     "icon": [],
     "externalBin": ["../dist/AudioTranscribe/AudioTranscribe.exe"]
   },
-  "plugins": {}
+  "plugins": {
+    "shell": {
+      "scope": [
+        { "name": "AudioTranscribe" }
+      ]
+    }
+  }
 }
-
 
