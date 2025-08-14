@@ -15,10 +15,20 @@ import os
 import platform
 from pathlib import Path
 
+
+def _resolve_base_dir() -> Path:
+    """Return base directory for resources, supporting PyInstaller frozen mode."""
+    if getattr(sys, "frozen", False):  # PyInstaller onefile/onedir
+        base = getattr(sys, "_MEIPASS", None)
+        if base:
+            return Path(base)
+    return Path(__file__).parent
+
 def start_backend():
     """Iniciar el servidor backend FastAPI."""
     print("🚀 Iniciando backend API...")
-    backend_dir = Path(__file__).parent / "backend"
+    base_dir = _resolve_base_dir()
+    backend_dir = base_dir / "backend"
     
     try:
         # Cambiar al directorio backend
@@ -32,21 +42,31 @@ def start_backend():
         env.setdefault("FORCE_DEVICE", "cpu")
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
         
-        # Comando según plataforma
-        if platform.system() == "Windows":
-            # En Windows, usar uv.exe si está disponible
-            cmd = ["uv.exe", "run", "python", "main.py"]
+        # Si estamos empaquetados, arrancar uvicorn en el mismo proceso
+        if getattr(sys, "frozen", False):
+            # Importar el backend añadiendo su carpeta al sys.path
+            sys.path.insert(0, str(backend_dir))
             try:
+                import main as backend_main  # type: ignore
+            except Exception as e:
+                print(f"❌ No se pudo importar backend/main.py: {e}")
+                return
+            try:
+                backend_main.run_server(reload=False)
+            except Exception as e:
+                print(f"❌ Error ejecutando servidor: {e}")
+            return
+
+        # Modo desarrollo (no congelado): usar uv si está disponible, si no, python directo
+        try:
+            if platform.system() == "Windows":
+                cmd = ["uv.exe", "run", "python", "main.py"]
                 subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
-            except FileNotFoundError:
-                # Fallback si uv.exe no se encuentra
-                cmd = ["uv", "run", "python", "main.py"]
-                subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
-        else:
-            # Linux/macOS
-            subprocess.run([
-                "uv", "run", "python", "main.py"
-            ], cwd=backend_dir, env=env, check=False)
+            else:
+                subprocess.run(["uv", "run", "python", "main.py"], cwd=backend_dir, env=env, check=False)
+        except FileNotFoundError:
+            # Fallback sin uv
+            subprocess.run([sys.executable, "main.py"], cwd=backend_dir, env=env, check=False)
         
     except KeyboardInterrupt:
         print("\n⏹️ Backend detenido por usuario")
@@ -65,7 +85,8 @@ def start_backend():
 def start_frontend_server():
     """Iniciar servidor para la interfaz frontend."""
     print("🌐 Iniciando servidor frontend...")
-    frontend_dir = Path(__file__).parent / "frontend"
+    base_dir = _resolve_base_dir()
+    frontend_dir = base_dir / "frontend"
     
     class Handler(http.server.SimpleHTTPRequestHandler):
         def __init__(self, *args, **kwargs):
@@ -93,7 +114,8 @@ def main():
     print(f"🖥️ Plataforma detectada: {current_platform}")
     
     # Verificar que estamos en el directorio correcto
-    if not (Path(__file__).parent / "backend" / "main.py").exists():
+    base_dir = _resolve_base_dir()
+    if not (base_dir / "backend" / "main.py").exists():
         print("❌ Error: No se encuentra el archivo backend/main.py")
         print("   Asegúrate de ejecutar este script desde el directorio raíz del proyecto")
         sys.exit(1)
