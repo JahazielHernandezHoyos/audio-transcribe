@@ -110,6 +110,110 @@
             background: rgba(139, 233, 253, 0.3);
             border-radius: 3px;
         }
+        
+        /* Vim-style buttons */
+        .btn-vim {
+            background: transparent;
+            border: 1px solid #44475a;
+            color: #839496;
+            font-family: 'Fira Code', 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            font-weight: 400;
+            padding: 0.5rem 1rem;
+            transition: all 0.15s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-vim:before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(139, 233, 253, 0.05);
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        
+        .btn-vim:hover:before {
+            opacity: 1;
+        }
+        
+        .btn-vim:hover {
+            border-color: #8be9fd;
+            color: #8be9fd;
+            box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+        }
+        
+        .btn-vim:active {
+            transform: translateY(1px);
+        }
+        
+        .btn-vim:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-vim:disabled:hover {
+            border-color: #44475a;
+            color: #839496;
+            box-shadow: none;
+        }
+        
+        /* Primary action buttons */
+        .btn-vim-primary {
+            border-color: #8be9fd;
+            color: #8be9fd;
+        }
+        
+        .btn-vim-primary:before {
+            background: rgba(139, 233, 253, 0.1);
+        }
+        
+        .btn-vim-primary:hover {
+            background: rgba(139, 233, 253, 0.1);
+            box-shadow: 0 0 15px rgba(139, 233, 253, 0.3);
+        }
+        
+        /* Success buttons */
+        .btn-vim-success {
+            border-color: #51cf66;
+            color: #51cf66;
+        }
+        
+        .btn-vim-success:before {
+            background: rgba(81, 207, 102, 0.1);
+        }
+        
+        .btn-vim-success:hover {
+            border-color: #51cf66;
+            color: #51cf66;
+            background: rgba(81, 207, 102, 0.1);
+            box-shadow: 0 0 15px rgba(81, 207, 102, 0.3);
+        }
+        
+        /* Danger buttons */
+        .btn-vim-danger {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+        }
+        
+        .btn-vim-danger:before {
+            background: rgba(255, 107, 107, 0.1);
+        }
+        
+        .btn-vim-danger:hover {
+            border-color: #ff6b6b;
+            color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+        }
+        
+        /* Large buttons for hero section */
+        .btn-vim-large {
+            padding: 0.75rem 2rem;
+            font-size: 1rem;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body class="bg-vim-bg text-vim-text font-mono min-h-screen scanlines relative">
@@ -141,12 +245,12 @@
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
                 <button id="startBtn" onclick="startCapture()" 
-                        class="bg-green-600 hover:bg-green-700 text-white font-code px-8 py-3 rounded-md glow-cyan transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    ▶ Execute Capture
+                        class="btn-vim btn-vim-success btn-vim-large rounded-md">
+                    [▶] :execute capture
                 </button>
                 <button id="stopBtn" onclick="stopCapture()" disabled
-                        class="bg-red-600 hover:bg-red-700 text-white font-code px-8 py-3 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                    ■ Stop Process
+                        class="btn-vim btn-vim-danger btn-vim-large rounded-md">
+                    [■] :stop process
                 </button>
             </div>
         </div>
@@ -180,8 +284,8 @@
                         <select id="outputDevice" class="w-full bg-vim-bg border border-vim-border rounded px-3 py-2 text-vim-text font-mono text-sm focus:border-vim-accent focus:outline-none"></select>
                     </div>
                     
-                    <button onclick="refreshDevices()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
-                        refresh_devices()
+                    <button onclick="refreshDevices()" class="btn-vim btn-vim-primary rounded">
+                        :refresh
                     </button>
                     
                     <div id="deviceStatus" class="font-mono text-xs text-vim-comment mt-2"></div>
@@ -210,11 +314,11 @@
                     </div>
                     
                     <div class="flex gap-2">
-                        <button onclick="showModelSelector()" class="bg-vim-blue hover:bg-blue-600 text-white font-mono px-4 py-2 rounded glow-blue transition-all duration-200">
-                            change_model()
+                        <button onclick="showModelSelector()" class="btn-vim btn-vim-primary rounded">
+                            :change_model
                         </button>
-                        <button onclick="applyLanguage()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
-                            apply_lang()
+                        <button onclick="applyLanguage()" class="btn-vim rounded">
+                            :apply_lang
                         </button>
                     </div>
                     
@@ -235,7 +339,7 @@
                     <h3 id="modelModalTitle" class="font-code text-lg text-vim-bright">Select Whisper Model</h3>
                     <div id="modelModalHint" class="font-mono text-sm text-vim-comment">Choose balance between speed and accuracy</div>
                 </div>
-                <button onclick="closeModelSelector()" class="bg-vim-border hover:bg-red-600 text-vim-text hover:text-white px-3 py-1 rounded font-mono transition-colors duration-200">
+                <button onclick="closeModelSelector()" class="btn-vim btn-vim-danger rounded">
                     [X]
                 </button>
             </div>
@@ -244,8 +348,8 @@
             </div>
             <div class="flex items-center justify-between p-4 border-t border-vim-border">
                 <span id="modalInfo" class="font-mono text-sm text-vim-comment"></span>
-                <button onclick="closeModelSelector()" class="bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-4 py-2 rounded transition-colors duration-200">
-                    close()
+                <button onclick="closeModelSelector()" class="btn-vim rounded">
+                    :close
                 </button>
             </div>
         </div>
@@ -260,7 +364,7 @@
                     <span class="font-code text-sm text-vim-comment">~/transcripts/realtime.log</span>
                     <span class="font-mono text-xs text-vim-comment">--INSERT--</span>
                 </div>
-                <button onclick="clearTranscriptions()" class="bg-vim-border hover:bg-red-600 text-vim-text hover:text-white px-3 py-1 rounded font-mono text-xs transition-colors duration-200">
+                <button onclick="clearTranscriptions()" class="btn-vim btn-vim-danger rounded text-xs">
                     :clear
                 </button>
             </div>
@@ -707,8 +811,8 @@
                 actionDiv.className = 'flex space-x-2';
                 
                 const loadBtn = document.createElement('button');
-                loadBtn.className = `bg-vim-blue hover:bg-blue-600 text-white font-mono px-3 py-1 rounded text-xs transition-colors duration-200 ${info.is_current ? 'opacity-50 cursor-not-allowed' : ''}`;
-                loadBtn.textContent = info.is_current ? 'active' : 'load()';
+                loadBtn.className = `btn-vim btn-vim-success rounded text-xs ${info.is_current ? '' : ''}`;
+                loadBtn.textContent = info.is_current ? '[active]' : ':load';
                 loadBtn.onclick = async () => await ensureLoadedThenActivate(id, info);
                 loadBtn.disabled = !!info.is_current;
 
@@ -716,8 +820,8 @@
                 
                 if (!info.downloaded) {
                     const downloadBtn = document.createElement('button');
-                    downloadBtn.className = 'bg-vim-border hover:bg-vim-accent hover:text-vim-bg text-vim-accent font-mono px-3 py-1 rounded text-xs transition-colors duration-200';
-                    downloadBtn.textContent = 'download()';
+                    downloadBtn.className = 'btn-vim rounded text-xs';
+                    downloadBtn.textContent = ':download';
                     downloadBtn.onclick = async () => await downloadModel(id, info);
                     actionDiv.appendChild(downloadBtn);
                 }
