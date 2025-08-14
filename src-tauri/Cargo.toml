@@ -19,4 +19,7 @@ tauri-plugin-shell = "2"
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
+[package.metadata.tauri.bundle]
+externalBin = ["bin/AudioTranscribe.exe"]
+
 
