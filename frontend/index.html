@@ -122,29 +122,16 @@
             padding: 0.5rem 1rem;
             transition: all 0.15s ease;
             position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-vim:before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: rgba(139, 233, 253, 0.05);
-            opacity: 0;
-            transition: opacity 0.15s ease;
-        }
-        
-        .btn-vim:hover:before {
-            opacity: 1;
         }
         
         .btn-vim:hover {
-            border-color: #8be9fd;
-            color: #8be9fd;
-            box-shadow: 0 0 10px rgba(139, 233, 253, 0.2);
+            background: #44475a;
+            border-color: #44475a;
+            color: #f8f8f2;
         }
         
         .btn-vim:active {
+            background: #3a3c4e;
             transform: translateY(1px);
         }
         
@@ -154,9 +141,9 @@
         }
         
         .btn-vim:disabled:hover {
+            background: transparent;
             border-color: #44475a;
             color: #839496;
-            box-shadow: none;
         }
         
         /* Primary action buttons */
@@ -165,13 +152,15 @@
             color: #8be9fd;
         }
         
-        .btn-vim-primary:before {
-            background: rgba(139, 233, 253, 0.1);
+        .btn-vim-primary:hover {
+            background: #8be9fd;
+            border-color: #8be9fd;
+            color: #002b36;
         }
         
-        .btn-vim-primary:hover {
-            background: rgba(139, 233, 253, 0.1);
-            box-shadow: 0 0 15px rgba(139, 233, 253, 0.3);
+        .btn-vim-primary:active {
+            background: #6dd3f0;
+            border-color: #6dd3f0;
         }
         
         /* Success buttons */
@@ -180,15 +169,15 @@
             color: #51cf66;
         }
         
-        .btn-vim-success:before {
-            background: rgba(81, 207, 102, 0.1);
+        .btn-vim-success:hover {
+            background: #51cf66;
+            border-color: #51cf66;
+            color: #002b36;
         }
         
-        .btn-vim-success:hover {
-            border-color: #51cf66;
-            color: #51cf66;
-            background: rgba(81, 207, 102, 0.1);
-            box-shadow: 0 0 15px rgba(81, 207, 102, 0.3);
+        .btn-vim-success:active {
+            background: #40c057;
+            border-color: #40c057;
         }
         
         /* Danger buttons */
@@ -197,15 +186,15 @@
             color: #ff6b6b;
         }
         
-        .btn-vim-danger:before {
-            background: rgba(255, 107, 107, 0.1);
+        .btn-vim-danger:hover {
+            background: #ff6b6b;
+            border-color: #ff6b6b;
+            color: #002b36;
         }
         
-        .btn-vim-danger:hover {
-            border-color: #ff6b6b;
-            color: #ff6b6b;
-            background: rgba(255, 107, 107, 0.1);
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.3);
+        .btn-vim-danger:active {
+            background: #fa5252;
+            border-color: #fa5252;
         }
         
         /* Large buttons for hero section */
