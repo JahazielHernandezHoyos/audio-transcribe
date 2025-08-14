@@ -67,9 +67,23 @@ dependencies = [
 
 ## 🚀 Cómo Usar la Aplicación
 
+### Instalación Automática
+
+#### Windows
+```cmd
+# Ejecutar el instalador automático
+install_windows.bat
+```
+
+#### Linux/macOS
+```bash
+# Ejecutar el instalador automático
+./install_unix.sh
+```
+
 ### Inicio Rápido
 ```bash
-# Ejecutar aplicación completa
+# Ejecutar aplicación completa (todas las plataformas)
 python start_app.py
 
 # O manualmente:
@@ -82,8 +96,26 @@ cd frontend && python -m http.server 3000
 
 ### Acceso
 - **Aplicación Web**: http://localhost:3000
-- **API Backend**: http://localhost:8000
-- **Documentación API**: http://localhost:8000/docs
+- **API Documentación**: http://localhost:8000/docs
+
+### Compatibilidad por Plataforma
+
+#### ✅ Windows
+- **Audio**: PyAudioWPatch (WASAPI)
+- **Instalación**: `install_windows.bat`
+- **Requisitos**: Python 3.12+, UV
+- **Notas**: Permite acceso al micrófono cuando se solicite
+
+#### ✅ Linux  
+- **Audio**: sounddevice (ALSA/PulseAudio)
+- **Instalación**: `./install_unix.sh`
+- **Setup audio**: `python backend/setup_system_audio.py`
+- **Notas**: Configuración automática de audio del sistema
+
+#### ✅ macOS
+- **Audio**: sounddevice (CoreAudio)
+- **Instalación**: `./install_unix.sh`
+- **Notas**: Permite acceso al micrófono en Preferencias del Sistema
 
 ### Funcionalidades Implementadas ✅
 - ✅ Captura de audio en tiempo real (Linux/micrófono)

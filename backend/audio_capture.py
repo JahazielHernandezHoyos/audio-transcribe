@@ -108,62 +108,111 @@ class AudioCapture:
             # Configurar PyAudio
             audio = pyaudio.PyAudio()
             
+            logger.info("🔍 Buscando dispositivos de audio en Windows...")
+            
             # Buscar dispositivo loopback (WASAPI)
             wasapi_info = None
+            devices_found = []
+            
             for i in range(audio.get_device_count()):
                 device_info = audio.get_device_info_by_index(i)
-                if ("loopback" in device_info["name"].lower() or 
-                    device_info["hostApi"] == 3):  # WASAPI
+                devices_found.append(f"  {i}: {device_info['name']} ({device_info['maxInputChannels']} in)")
+                
+                # Priorizar loopback WASAPI
+                if ("loopback" in device_info["name"].lower() and 
+                    device_info["maxInputChannels"] > 0):
                     wasapi_info = device_info
+                    logger.info(f"✅ Encontrado dispositivo loopback: {device_info['name']}")
                     break
+                
+                # Fallback: cualquier dispositivo WASAPI con entrada
+                if (device_info["hostApi"] == 3 and  # WASAPI
+                    device_info["maxInputChannels"] > 0 and
+                    not wasapi_info):
+                    wasapi_info = device_info
+            
+            logger.info("📋 Dispositivos de audio encontrados:")
+            for device in devices_found:
+                logger.info(device)
             
             if not wasapi_info:
-                logger.warning("No se encontró dispositivo loopback, usando micrófono")
-                wasapi_info = audio.get_default_input_device_info()
+                logger.warning("⚠️ No se encontró dispositivo loopback, usando micrófono por defecto")
+                try:
+                    wasapi_info = audio.get_default_input_device_info()
+                except Exception as e:
+                    logger.error(f"Error obteniendo dispositivo por defecto: {e}")
+                    audio.terminate()
+                    raise AudioCaptureError("No se pudo encontrar ningún dispositivo de entrada")
             
-            logger.info(f"Usando dispositivo: {wasapi_info['name']}")
+            logger.info(f"🎤 Usando dispositivo: {wasapi_info['name']}")
             
             def audio_callback(in_data, frame_count, time_info, status):
                 """Callback para procesar audio capturado."""
                 if status:
-                    logger.warning(f"Audio callback status: {status}")
+                    logger.warning(f"⚠️ Audio callback status: {status}")
                 
-                # Convertir bytes a numpy array
-                audio_data = np.frombuffer(in_data, dtype=np.float32)
-                
-                # Agregar a la cola
-                self.audio_queue.put(audio_data.copy())
-                
-                # Llamar callback personalizado si existe
-                if callback:
-                    callback(audio_data)
+                try:
+                    # Convertir bytes a numpy array
+                    audio_data = np.frombuffer(in_data, dtype=np.float32)
+                    
+                    # Agregar a la cola
+                    self.audio_queue.put(audio_data.copy())
+                    
+                    # Llamar callback personalizado si existe
+                    if callback:
+                        callback(audio_data)
+                        
+                except Exception as e:
+                    logger.error(f"Error en audio callback: {e}")
                 
                 return (None, pyaudio.paContinue)
             
-            # Iniciar stream
-            stream = audio.open(
-                format=pyaudio.paFloat32,
-                channels=1,
-                rate=self.sample_rate,
-                input=True,
-                input_device_index=wasapi_info["index"],
-                frames_per_buffer=self.chunk_size,
-                stream_callback=audio_callback
-            )
+            # Iniciar stream con configuración robusta
+            try:
+                stream = audio.open(
+                    format=pyaudio.paFloat32,
+                    channels=1,
+                    rate=self.sample_rate,
+                    input=True,
+                    input_device_index=wasapi_info["index"],
+                    frames_per_buffer=self.chunk_size,
+                    stream_callback=audio_callback
+                )
+                
+                stream.start_stream()
+                logger.info("🎵 Captura de audio iniciada en Windows (WASAPI)")
+                
+                while self.is_capturing and stream.is_active():
+                    time.sleep(0.1)
+                
+                stream.stop_stream()
+                stream.close()
+                logger.info("⏹️ Stream de audio cerrado")
+                
+            except Exception as e:
+                logger.error(f"Error configurando stream de audio: {e}")
+                raise
+            finally:
+                audio.terminate()
             
-            stream.start_stream()
-            logger.info("Captura de audio iniciada en Windows")
+        except ImportError as e:
+            error_msg = """
+PyAudioWPatch no está instalado. Para Windows necesitas:
+
+1. Instalar PyAudioWPatch:
+   pip install PyAudioWPatch
+
+2. O con UV:
+   uv add PyAudioWPatch
+
+3. Alternativamente, usa el instalador automático:
+   uv sync
+"""
+            logger.error(error_msg)
+            raise AudioCaptureError(f"PyAudioWPatch requerido para Windows: {e}")
             
-            while self.is_capturing and stream.is_active():
-                time.sleep(0.1)
-            
-            stream.stop_stream()
-            stream.close()
-            audio.terminate()
-            
-        except ImportError:
-            raise AudioCaptureError("PyAudioWPatch no está instalado")
         except Exception as e:
+            logger.error(f"Error en captura Windows: {e}")
             raise AudioCaptureError(f"Error en captura Windows: {e}")
     
     def start_capture(self, callback: Optional[Callable] = None):

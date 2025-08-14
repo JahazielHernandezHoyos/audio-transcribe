@@ -12,6 +12,7 @@ import threading
 import http.server
 import socketserver
 import os
+import platform
 from pathlib import Path
 
 def start_backend():
@@ -21,22 +22,45 @@ def start_backend():
     
     try:
         # Cambiar al directorio backend
+        original_dir = Path.cwd()
         os.chdir(backend_dir)
         
-        # Ejecutar servidor FastAPI
+        # Configurar entorno multiplataforma
         env = os.environ.copy()
         # Force CPU to avoid CUDA initialization crashes (can be overridden)
         env.setdefault("CUDA_VISIBLE_DEVICES", "")
         env.setdefault("FORCE_DEVICE", "cpu")
         env.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
-        subprocess.run([
-            "uv", "run", "python", "main.py"
-        ], cwd=backend_dir, env=env)
+        
+        # Comando según plataforma
+        if platform.system() == "Windows":
+            # En Windows, usar uv.exe si está disponible
+            cmd = ["uv.exe", "run", "python", "main.py"]
+            try:
+                subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
+            except FileNotFoundError:
+                # Fallback si uv.exe no se encuentra
+                cmd = ["uv", "run", "python", "main.py"]
+                subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
+        else:
+            # Linux/macOS
+            subprocess.run([
+                "uv", "run", "python", "main.py"
+            ], cwd=backend_dir, env=env, check=False)
         
     except KeyboardInterrupt:
         print("\n⏹️ Backend detenido por usuario")
     except Exception as e:
         print(f"❌ Error iniciando backend: {e}")
+        print("💡 Asegúrate de que UV está instalado y en el PATH")
+        if platform.system() == "Windows":
+            print("💡 En Windows, instala UV desde: https://docs.astral.sh/uv/getting-started/installation/")
+    finally:
+        # Restaurar directorio original
+        try:
+            os.chdir(original_dir)
+        except Exception:
+            pass
 
 def start_frontend_server():
     """Iniciar servidor para la interfaz frontend."""
@@ -63,8 +87,10 @@ def start_frontend_server():
 
 def main():
     """Función principal."""
+    current_platform = platform.system()
     print("🎵 Audio Transcribe - Iniciando aplicación completa...")
     print("=" * 60)
+    print(f"🖥️ Plataforma detectada: {current_platform}")
     
     # Verificar que estamos en el directorio correcto
     if not (Path(__file__).parent / "backend" / "main.py").exists():
@@ -76,6 +102,16 @@ def main():
     print("   • Backend API (FastAPI) en puerto 8000")
     print("   • Frontend Web en puerto 3000")
     print("   • Transcripción en tiempo real con Whisper")
+    
+    # Información específica de plataforma
+    if current_platform == "Windows":
+        print("   • Captura de audio: PyAudioWPatch (WASAPI)")
+        print("   • Asegúrate de que PyAudioWPatch esté instalado")
+    elif current_platform == "Linux":
+        print("   • Captura de audio: sounddevice (ALSA/PulseAudio)")
+    elif current_platform == "Darwin":  # macOS
+        print("   • Captura de audio: sounddevice (CoreAudio)")
+    
     print()
     
     try:
@@ -95,7 +131,11 @@ def main():
         print("   1. Abre http://localhost:3000 en tu navegador")
         print("   2. Presiona 'Iniciar Captura' para comenzar")
         print("   3. Habla o reproduce audio para ver la transcripción")
-        print("   4. Presiona Ctrl+C para detener")
+        if current_platform == "Windows":
+            print("   4. En Windows, permite el acceso al micrófono si se solicita")
+            print("   5. Presiona Ctrl+C para detener")
+        else:
+            print("   4. Presiona Ctrl+C para detener")
         print()
         
         # Intentar abrir automáticamente en el navegador
@@ -113,6 +153,7 @@ def main():
         
     except Exception as e:
         print(f"\n❌ Error inesperado: {e}")
+        print(f"💡 Plataforma: {current_platform}")
         sys.exit(1)
 
 if __name__ == "__main__":

@@ -11,4 +11,5 @@ dependencies = [
     "transformers>=4.30.0",
     "uvicorn>=0.35.0",
     "websockets>=15.0.1",
+    "PyAudioWPatch>=0.2.12.5; sys_platform=='win32'",
 ]
