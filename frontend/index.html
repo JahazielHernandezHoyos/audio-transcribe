@@ -79,6 +79,155 @@
             50% { opacity: 0.5; }
         }
 
+        /* Modal selector de modelos */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .modal-backdrop.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1f1b2e;
+            color: #fff;
+            width: 860px;
+            max-width: 95vw;
+            max-height: 80vh;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+            border: 1px solid rgba(255,255,255,0.12);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 18px;
+            background: rgba(255,255,255,0.06);
+        }
+
+        .modal-body {
+            padding: 16px 18px 8px 18px;
+            overflow: auto;
+        }
+
+        .modal-footer {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 10px;
+            padding: 12px 18px 16px 18px;
+            background: rgba(255,255,255,0.04);
+        }
+
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .model-card {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            padding: 14px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            grid-template-rows: auto auto auto;
+            gap: 6px 12px;
+        }
+
+        .model-card h5 {
+            margin: 0;
+            font-size: 1.05em;
+            font-weight: 600;
+        }
+
+        .model-desc {
+            grid-column: 1 / -1;
+            opacity: 0.9;
+            font-size: 0.92em;
+        }
+
+        .badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.14);
+            font-size: 0.75em;
+            opacity: 0.95;
+        }
+
+        .badge.success { background: rgba(20,170,90,0.18); border-color: rgba(20,170,90,0.35); }
+        .badge.warn { background: rgba(255,180,0,0.18); border-color: rgba(255,180,0,0.35); }
+        .badge.info { background: rgba(90,160,255,0.18); border-color: rgba(90,160,255,0.35); }
+
+        .model-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .ghost-btn {
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.18);
+            padding: 8px 12px;
+            border-radius: 10px;
+            color: white;
+            cursor: pointer;
+        }
+
+        .ghost-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .progress {
+            position: relative;
+            height: 8px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress > span {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 30%;
+            background: linear-gradient(90deg, #7aa2ff, #51cf66);
+            animation: progressIndeterminate 1.4s ease-in-out infinite;
+        }
+
+        @keyframes progressIndeterminate {
+            0% { left: -30%; width: 30%; }
+            50% { left: 45%; width: 40%; }
+            100% { left: 100%; width: 30%; }
+        }
+
+        @media (max-width: 700px) {
+            .model-grid { grid-template-columns: 1fr; }
+        }
+
         @keyframes fadeIn {
             from { 
                 opacity: 0; 
@@ -242,9 +391,16 @@
             </div>
         </div>
 
-        <div class="device-selector" style="background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
+            <div class="device-selector" style="background: rgba(0,0,0,0.2); border-radius: 10px; padding: 15px; margin-bottom: 20px;">
             <h4>🎚️ Dispositivos de Audio</h4>
             <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-top: 10px; align-items: center;">
+                <div>
+                    <label for="sourceKind" style="font-size: 0.9em; opacity: 0.9;">Fuente</label><br/>
+                    <select id="sourceKind" style="min-width: 220px; padding: 6px 10px; border-radius: 8px;">
+                        <option value="input">Micrófono / Entrada</option>
+                        <option value="system">Salida del sistema (loopback)</option>
+                    </select>
+                </div>
                 <div>
                     <label for="inputDevice" style="font-size: 0.9em; opacity: 0.9;">Entrada</label><br/>
                     <select id="inputDevice" style="min-width: 260px; padding: 6px 10px; border-radius: 8px;"></select>
@@ -266,6 +422,38 @@
                     🔧 Cambiar Modelo
                 </button>
                 <span id="modelStatus" style="margin-left: 10px; font-size: 0.8em;"></span>
+            </div>
+            <div style="margin-top: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <div>
+                    <label for="languageSelect" style="font-size: 0.9em; opacity: 0.9;">Idioma</label><br/>
+                    <select id="languageSelect" style="min-width: 220px; padding: 6px 10px; border-radius: 8px;">
+                        <option value="auto">Auto</option>
+                        <option value="spanish" selected>Español</option>
+                        <option value="english">English</option>
+                    </select>
+                </div>
+                <button class="clear-btn" style="height: 36px;" onclick="applyLanguage()">🌐 Aplicar idioma</button>
+                <span id="languageStatus" style="font-size: 0.85em; opacity: 0.8;"></span>
+            </div>
+        </div>
+
+        <!-- Modal selector de modelos -->
+        <div id="modelModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modelModalTitle">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h3 id="modelModalTitle" style="font-weight:600;">Seleccionar modelo Whisper</h3>
+                        <div id="modelModalHint" style="opacity:0.8; font-size:0.9em;">Elige el balance entre velocidad y precisión según tus recursos.</div>
+                    </div>
+                    <button class="ghost-btn" onclick="closeModelSelector()">✖</button>
+                </div>
+                <div class="modal-body">
+                    <div id="modelsContainer" class="model-grid"></div>
+                </div>
+                <div class="modal-footer">
+                    <span id="modalInfo" style="opacity:0.85; font-size:0.9em; margin-right:auto;"></span>
+                    <button class="ghost-btn" onclick="closeModelSelector()">Cerrar</button>
+                </div>
             </div>
         </div>
 
@@ -313,6 +501,10 @@
         const inputDevice = document.getElementById('inputDevice');
         const outputDevice = document.getElementById('outputDevice');
         const deviceStatus = document.getElementById('deviceStatus');
+        const sourceKind = document.getElementById('sourceKind');
+        const modelModal = document.getElementById('modelModal');
+        const modelsContainer = document.getElementById('modelsContainer');
+        const modalInfo = document.getElementById('modalInfo');
 
         // Configuración
         const API_BASE = 'http://127.0.0.1:8000';
@@ -508,6 +700,7 @@
                     command: 'start_capture',
                     device_index: isNaN(selectedInput) ? null : selectedInput,
                     output_device_index: isNaN(selectedOutput) ? null : selectedOutput,
+                    source: sourceKind.value,
                 };
                 websocket.send(JSON.stringify(command));
             } else {
@@ -545,25 +738,15 @@
 
         async function showModelSelector() {
             try {
+                modalInfo.textContent = 'Cargando modelos...';
+                openModelSelector();
                 const response = await fetch(`${API_BASE}/models`);
                 const models = await response.json();
-                
-                let modelList = '🤖 Modelos Disponibles:\\n\\n';
-                for (const [id, info] of Object.entries(models)) {
-                    const status = info.downloaded ? '✅' : '📥';
-                    const current = info.is_current ? ' (ACTUAL)' : '';
-                    modelList += `${id}: ${info.description} - ${info.size_mb}MB ${status}${current}\\n`;
-                }
-                
-                const selectedModel = prompt(modelList + '\\nEscribe el ID del modelo a cargar (tiny, base, small, medium, large):');
-                
-                if (selectedModel && models[selectedModel]) {
-                    await loadModel(selectedModel);
-                }
-                
+                renderModels(models);
+                modalInfo.textContent = 'Consejo: "tiny" es más rápido; "large" es más preciso.';
             } catch (error) {
                 console.error('Error mostrando selector de modelos:', error);
-                alert('Error obteniendo lista de modelos');
+                modalInfo.textContent = 'Error obteniendo lista de modelos';
             }
         }
 
@@ -582,7 +765,8 @@
                     setTimeout(() => {
                         document.getElementById('modelStatus').textContent = '';
                         loadModelInfo();
-                    }, 2000);
+                        closeModelSelector();
+                    }, 1200);
                 } else {
                     document.getElementById('modelStatus').textContent = '❌ Error';
                     alert('Error cargando modelo: ' + result.message);
@@ -595,6 +779,138 @@
             }
         }
 
+        async function applyLanguage() {
+            try {
+                const lang = document.getElementById('languageSelect').value;
+                document.getElementById('languageStatus').textContent = 'Aplicando...';
+                const response = await fetch(`${API_BASE}/models/tiny/load?language=${encodeURIComponent(lang)}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('languageStatus').textContent = '✅ Idioma aplicado';
+                    setTimeout(() => { document.getElementById('languageStatus').textContent = ''; }, 2000);
+                } else {
+                    document.getElementById('languageStatus').textContent = '❌ Error';
+                    alert('Error aplicando idioma: ' + (result.message || '')); 
+                }
+            } catch (e) {
+                console.error('Error aplicando idioma', e);
+                document.getElementById('languageStatus').textContent = '❌ Error';
+            }
+        }
+
+        async function downloadModel(modelId, info) {
+            try {
+                modalInfo.textContent = `Descargando ${modelId}...`;
+                const progressRow = document.createElement('div');
+                progressRow.style.gridColumn = '1 / -1';
+                progressRow.className = 'progress';
+                const bar = document.createElement('span');
+                progressRow.appendChild(bar);
+                if (modelsContainer.firstChild) {
+                    modelsContainer.firstChild.appendChild(progressRow);
+                }
+                const response = await fetch(`${API_BASE}/models/${modelId}/download`, { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    modalInfo.textContent = `✅ Modelo ${modelId} descargado`;
+                    const res2 = await fetch(`${API_BASE}/models`);
+                    const models = await res2.json();
+                    renderModels(models);
+                } else {
+                    modalInfo.textContent = '❌ Error descargando modelo';
+                    alert(result.message || 'Error descargando modelo');
+                }
+            } catch (e) {
+                console.error(e);
+                modalInfo.textContent = '❌ Error de red en descarga';
+            }
+        }
+
+        async function ensureLoadedThenActivate(modelId, info) {
+            if (!info.downloaded) {
+                await downloadModel(modelId, info);
+                const res = await fetch(`${API_BASE}/models`);
+                const models = await res.json();
+                info = models[modelId] || info;
+            }
+            await loadModel(modelId);
+        }
+
+        function renderModels(models) {
+            modelsContainer.innerHTML = '';
+            const entries = Object.entries(models);
+            entries.forEach(([id, info]) => {
+                const card = document.createElement('div');
+                card.className = 'model-card';
+
+                const title = document.createElement('h5');
+                title.textContent = `${id.toUpperCase()} • ${info.size_mb}MB`;
+
+                const badges = document.createElement('div');
+                badges.className = 'badges';
+                const b1 = document.createElement('span');
+                b1.className = 'badge info';
+                b1.textContent = `${info.speed || ''} speed`;
+                const b2 = document.createElement('span');
+                b2.className = 'badge info';
+                b2.textContent = `${info.accuracy || ''} accuracy`;
+                const b3 = document.createElement('span');
+                b3.className = `badge ${info.is_current ? 'success' : ''}`;
+                b3.textContent = info.is_current ? 'Actual' : (info.downloaded ? 'Descargado' : 'No descargado');
+                const b4 = document.createElement('span');
+                b4.className = 'badge';
+                b4.textContent = `Descarga: ${info.estimated_download_time || '~'}`;
+                badges.appendChild(b1); badges.appendChild(b2); badges.appendChild(b3); badges.appendChild(b4);
+
+                const desc = document.createElement('div');
+                desc.className = 'model-desc';
+                desc.textContent = `${info.description} • ${info.recommended_for || ''}`;
+
+                const actions = document.createElement('div');
+                actions.className = 'model-actions';
+                const loadBtn = document.createElement('button');
+                loadBtn.className = 'ghost-btn';
+                loadBtn.textContent = info.is_current ? 'En uso' : 'Cargar';
+                loadBtn.disabled = !!info.is_current;
+                loadBtn.onclick = async () => {
+                    await ensureLoadedThenActivate(id, info);
+                };
+
+                const dlBtn = document.createElement('button');
+                dlBtn.className = 'ghost-btn';
+                dlBtn.textContent = info.downloaded ? 'Descargado' : 'Descargar';
+                dlBtn.disabled = !!info.downloaded;
+                dlBtn.onclick = async () => {
+                    await downloadModel(id, info);
+                };
+
+                actions.appendChild(loadBtn);
+                actions.appendChild(dlBtn);
+
+                card.appendChild(title);
+                card.appendChild(badges);
+                card.appendChild(desc);
+                card.appendChild(actions);
+                modelsContainer.appendChild(card);
+            });
+        }
+
+        function openModelSelector() {
+            modelModal.classList.add('show');
+            document.addEventListener('keydown', handleEscModal);
+        }
+
+        function closeModelSelector() {
+            modelModal.classList.remove('show');
+            document.removeEventListener('keydown', handleEscModal);
+        }
+
+        function handleEscModal(ev) {
+            if (ev.key === 'Escape') closeModelSelector();
+        }
+
         // Inicializar aplicación
         function init() {
             console.log('Iniciando Audio Transcribe Frontend...');
@@ -602,6 +918,9 @@
             connectWebSocket();
             loadModelInfo();
             refreshDevices();
+            modelModal.addEventListener('click', (ev) => {
+                if (ev.target === modelModal) closeModelSelector();
+            });
         }
 
         // Iniciar cuando la página esté cargada
