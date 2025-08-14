@@ -13,7 +13,9 @@ import http.server
 import socketserver
 import os
 import platform
+import shutil
 from pathlib import Path
+from urllib.request import urlretrieve
 
 
 def _resolve_base_dir() -> Path:
@@ -57,16 +59,25 @@ def start_backend():
                 print(f"❌ Error ejecutando servidor: {e}")
             return
 
-        # Modo desarrollo (no congelado): usar uv si está disponible, si no, python directo
-        try:
-            if platform.system() == "Windows":
-                cmd = ["uv.exe", "run", "python", "main.py"]
-                subprocess.run(cmd, cwd=backend_dir, env=env, check=False)
-            else:
-                subprocess.run(["uv", "run", "python", "main.py"], cwd=backend_dir, env=env, check=False)
-        except FileNotFoundError:
-            # Fallback sin uv
-            subprocess.run([sys.executable, "main.py"], cwd=backend_dir, env=env, check=False)
+        # Modo desarrollo (no congelado): garantizar uv y usarlo como runtime embebido
+        uv_path = _ensure_uv()
+        if uv_path:
+            # Instalar deps si faltan y ejecutar en la raíz del proyecto (donde está pyproject.toml)
+            try:
+                print("📦 Sincronizando dependencias con uv...")
+                subprocess.run([uv_path, "sync"], cwd=base_dir, env=env, check=True)
+            except Exception as e:
+                print(f"⚠️ uv sync falló: {e}")
+            # Ejecutar backend usando el runtime gestionado por uv
+            try:
+                subprocess.run([uv_path, "run", "python", "-m", "backend.main"], cwd=base_dir, env=env, check=False)
+            except Exception as e:
+                print(f"❌ Error ejecutando backend con uv run: {e}")
+                print("➡️ Intentando fallback a Python del sistema...")
+                subprocess.run([sys.executable, "-m", "backend.main"], cwd=base_dir, env=env, check=False)
+        else:
+            print("⚠️ No se pudo asegurar uv. Usando Python del sistema como fallback.")
+            subprocess.run([sys.executable, "-m", "backend.main"], cwd=base_dir, env=env, check=False)
         
     except KeyboardInterrupt:
         print("\n⏹️ Backend detenido por usuario")
@@ -105,6 +116,50 @@ def start_frontend_server():
         print("\n⏹️ Frontend detenido por usuario")
     except Exception as e:
         print(f"❌ Error iniciando frontend: {e}")
+
+
+def _ensure_uv() -> str | None:
+    """Ensure 'uv' is available. If not, download a portable binary for the platform.
+
+    Returns absolute path to uv executable or None.
+    """
+    # 1) PATH
+    exe_name = "uv.exe" if platform.system() == "Windows" else "uv"
+    path_uv = shutil.which("uv") or shutil.which(exe_name)
+    if path_uv:
+        return path_uv
+
+    # 2) Try download latest release binary
+    try:
+        arch = platform.machine().lower()
+        sysname = platform.system().lower()
+        if sysname == "windows":
+            tag = "x86_64-pc-windows-msvc" if "64" in arch or arch == "amd64" else "i686-pc-windows-msvc"
+            filename = f"uv-{tag}.exe"
+        elif sysname == "linux":
+            tag = "x86_64-unknown-linux-gnu" if arch in {"x86_64", "amd64"} else "aarch64-unknown-linux-gnu"
+            filename = f"uv-{tag}"
+        elif sysname == "darwin":
+            tag = "aarch64-apple-darwin" if arch in {"arm64", "aarch64"} else "x86_64-apple-darwin"
+            filename = f"uv-{tag}"
+        else:
+            return None
+
+        url = f"https://github.com/astral-sh/uv/releases/latest/download/{filename}"
+        base_dir = _resolve_base_dir()
+        runtime_dir = base_dir / "runtime"
+        runtime_dir.mkdir(exist_ok=True)
+        dest = runtime_dir / ("uv.exe" if filename.endswith(".exe") else "uv")
+        print(f"⬇️ Descargando uv desde {url} ...")
+        urlretrieve(url, dest)
+        try:
+            os.chmod(dest, 0o755)
+        except Exception:
+            pass
+        return str(dest)
+    except Exception as e:
+        print(f"⚠️ No se pudo descargar uv: {e}")
+        return None
 
 def main():
     """Función principal."""
