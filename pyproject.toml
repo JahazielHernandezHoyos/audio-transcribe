@@ -13,6 +13,7 @@ dependencies = [
     "websockets>=15.0.1",
     "PyAudioWPatch>=0.2.12.5; sys_platform=='win32'",
     "pyaudiowpatch>=0.2.12.5",
+    "pyinstaller>=6.15.0",
 ]
 
 [project.optional-dependencies]
