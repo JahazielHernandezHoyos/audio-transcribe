@@ -3,23 +3,23 @@
   "productName": "Audio Transcribe",
   "version": "0.1.0",
   "identifier": "audio.transcribe",
-  "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devUrl": "http://localhost:3000",
-    "frontendDist": "../frontend"
-  },
-  "app": {
+  "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": ["nsis", "msi"],
+      "icon": [],
+      "externalBin": ["../dist/AudioTranscribe/AudioTranscribe.exe"]
+    },
     "windows": [
       { "title": "Audio Transcribe", "width": 1200, "height": 800 }
     ],
     "security": { "csp": null }
   },
-  "bundle": {
-    "active": true,
-    "targets": ["nsis", "msi"],
-    "icon": [],
-    "externalBin": ["../dist/AudioTranscribe/AudioTranscribe.exe"]
+  "build": {
+    "beforeDevCommand": "",
+    "beforeBuildCommand": "",
+    "devUrl": "http://localhost:3000",
+    "frontendDist": "../frontend"
   },
   "plugins": {
     "shell": {
