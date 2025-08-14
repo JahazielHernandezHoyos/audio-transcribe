@@ -26,7 +26,7 @@ class AudioCapture:
     Clase para capturar audio del sistema de forma multiplataforma.
     """
 
-    def __init__(self, sample_rate: int = 16000, chunk_size: int = 1024, preferred_device_index: Optional[int] = None):
+    def __init__(self, sample_rate: int = 16000, chunk_size: int = 1024, preferred_device_index: int | None = None):
         """
         Inicializar capturador de audio.
 
@@ -46,7 +46,7 @@ class AudioCapture:
         logger.info(f"Inicializando AudioCapture para {self.platform}")
         logger.info(f"Sample rate: {sample_rate}Hz, Chunk size: {chunk_size}")
 
-    def _capture_linux(self, callback: Optional[Callable] = None):
+    def _capture_linux(self, callback: Callable | None = None):
         """
         Captura de audio en Linux usando sounddevice.
 
@@ -70,10 +70,7 @@ class AudioCapture:
                     logger.warning(f"Audio callback status: {status}")
 
                 # Convertir a mono si es estéreo
-                if indata.shape[1] > 1:
-                    audio_data = np.mean(indata, axis=1)
-                else:
-                    audio_data = indata[:, 0]
+                audio_data = np.mean(indata, axis=1) if indata.shape[1] > 1 else indata[:, 0]
 
                 # Agregar a la cola
                 self.audio_queue.put(audio_data.copy())
@@ -94,12 +91,12 @@ class AudioCapture:
                 while self.is_capturing:
                     time.sleep(0.1)
 
-        except ImportError:
-            raise AudioCaptureError("sounddevice no está instalado")
+        except ImportError as err:
+            raise AudioCaptureError("sounddevice no está instalado") from err
         except Exception as e:
-            raise AudioCaptureError(f"Error en captura Linux: {e}")
+            raise AudioCaptureError(f"Error en captura Linux: {e}") from e
 
-    def _capture_windows(self, callback: Optional[Callable] = None):
+    def _capture_windows(self, callback: Callable | None = None):
         """
         Captura de audio en Windows usando PyAudioWPatch.
 
@@ -135,11 +132,12 @@ class AudioCapture:
                     break
 
                 # Fallback heurístico: priorizar loopback, si no, cualquier WASAPI con entrada
-                if not wasapi_info and device_info["maxInputChannels"] > 0:
-                    if "loopback" in device_info["name"].lower():
-                        wasapi_info = device_info
-                    elif device_info.get("hostApi") == 3:
-                        wasapi_info = device_info
+                if (
+                    not wasapi_info
+                    and device_info["maxInputChannels"] > 0
+                    and ("loopback" in device_info["name"].lower() or device_info.get("hostApi") == 3)
+                ):
+                    wasapi_info = device_info
 
             logger.info("📋 Dispositivos de audio encontrados:")
             for device in devices_found:
@@ -156,7 +154,7 @@ class AudioCapture:
                     audio.terminate()
                     raise AudioCaptureError(
                         "No se pudo encontrar ningún dispositivo de entrada"
-                    )
+                    ) from e
 
             logger.info(f"🎤 Usando dispositivo: {wasapi_info['name']}")
 
@@ -259,11 +257,11 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
    uv sync
 """
             logger.error(error_msg)
-            raise AudioCaptureError(f"PyAudioWPatch requerido para Windows: {e}")
+            raise AudioCaptureError(f"PyAudioWPatch requerido para Windows: {e}") from e
 
         except Exception as e:
             logger.error(f"Error en captura Windows: {e}")
-            raise AudioCaptureError(f"Error en captura Windows: {e}")
+            raise AudioCaptureError(f"Error en captura Windows: {e}") from e
 
     def _resample_audio(
         self, audio_data: np.ndarray, from_rate: int, to_rate: int
@@ -300,7 +298,7 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
             )
             return audio_data.astype(np.float32, copy=False)
 
-    def start_capture(self, callback: Optional[Callable] = None):
+    def start_capture(self, callback: Callable | None = None):
         """
         Iniciar captura de audio.
 
@@ -342,7 +340,7 @@ PyAudioWPatch no está instalado. Para Windows necesitas:
 
         logger.info("Captura de audio detenida")
 
-    def get_audio_chunk(self, timeout: float = 1.0) -> Optional[np.ndarray]:
+    def get_audio_chunk(self, timeout: float = 1.0) -> np.ndarray | None:
         """
         Obtener chunk de audio de la cola.
 

@@ -141,7 +141,7 @@ def audio_callback(audio_data: np.ndarray):
         else:
             logger.debug(f"🔇 Chunk muy silencioso (vol: {rms_volume:.4f}), ignorando")
 
-def _list_audio_devices() -> Dict[str, any]:
+def _list_audio_devices() -> dict[str, any]:
     """Listar dispositivos de audio disponibles por plataforma."""
     import platform as _platform
     devices = []
@@ -209,9 +209,9 @@ def _list_audio_devices() -> Dict[str, any]:
 
 
 def _resolve_device_index(
-    selected_device_index: Optional[int] = None,
-    selected_output_index: Optional[int] = None,
-) -> Optional[int]:
+    selected_device_index: int | None = None,
+    selected_output_index: int | None = None,
+) -> int | None:
     """Resolver índice final de dispositivo de entrada a usar.
 
     - En Windows, si se da un índice de salida, busca el input loopback correspondiente por nombre.
@@ -264,8 +264,7 @@ def _resolve_device_index(
         else:
             # En Linux/macOS solo se usa el índice de entrada
             if selected_device_index is not None:
-                final_index = int(selected_device_index)
-                return final_index
+                return int(selected_device_index)
     except Exception as e:
         logger.error(f"Error resolviendo índice de dispositivo: {e}")
 
@@ -273,9 +272,9 @@ def _resolve_device_index(
 
 
 def start_audio_capture(
-    selected_device_index: Optional[int] = None,
-    selected_output_index: Optional[int] = None,
-) -> Dict[str, any]:
+    selected_device_index: int | None = None,
+    selected_output_index: int | None = None,
+) -> dict[str, any]:
     """Iniciar captura de audio."""
     if app_state["is_capturing"]:
         return {"success": False, "message": "Captura ya activa"}
@@ -309,7 +308,7 @@ def start_audio_capture(
             "message": "Captura iniciada",
             "device_index": resolved_index,
         }
-        
+
     except AudioCaptureError as e:
         logger.error(f"❌ Error iniciando captura: {e}")
         return {"success": False, "message": str(e)}
