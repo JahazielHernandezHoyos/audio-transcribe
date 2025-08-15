@@ -28,7 +28,7 @@ def _resolve_base_dir() -> Path:
 
 def start_backend():
     """Iniciar el servidor backend FastAPI."""
-    print("🚀 Iniciando backend API...")
+    print("Starting backend API...")
     base_dir = _resolve_base_dir()
     backend_dir = base_dir / "backend"
     
@@ -51,12 +51,12 @@ def start_backend():
             try:
                 import main as backend_main  # type: ignore
             except Exception as e:
-                print(f"❌ No se pudo importar backend/main.py: {e}")
+                print(f"Error: Could not import backend/main.py: {e}")
                 return
             try:
                 backend_main.run_server(reload=False)
             except Exception as e:
-                print(f"❌ Error ejecutando servidor: {e}")
+                print(f"Error running server: {e}")
             return
 
         # Modo desarrollo (no congelado): garantizar uv y usarlo como runtime embebido
@@ -64,28 +64,28 @@ def start_backend():
         if uv_path:
             # Instalar deps si faltan y ejecutar en la raíz del proyecto (donde está pyproject.toml)
             try:
-                print("📦 Sincronizando dependencias con uv...")
+                print("Syncing dependencies with uv...")
                 subprocess.run([uv_path, "sync"], cwd=base_dir, env=env, check=True)
             except Exception as e:
-                print(f"⚠️ uv sync falló: {e}")
+                print(f"Warning: uv sync failed: {e}")
             # Ejecutar backend usando el runtime gestionado por uv
             try:
                 subprocess.run([uv_path, "run", "python", "-m", "backend.main"], cwd=base_dir, env=env, check=False)
             except Exception as e:
-                print(f"❌ Error ejecutando backend con uv run: {e}")
+                print(f"Error running backend with uv run: {e}")
                 print("➡️ Intentando fallback a Python del sistema...")
                 subprocess.run([sys.executable, "-m", "backend.main"], cwd=base_dir, env=env, check=False)
         else:
-            print("⚠️ No se pudo asegurar uv. Usando Python del sistema como fallback.")
+            print("Warning: Could not ensure uv. Using system Python as fallback.")
             subprocess.run([sys.executable, "-m", "backend.main"], cwd=base_dir, env=env, check=False)
         
     except KeyboardInterrupt:
         print("\n⏹️ Backend detenido por usuario")
     except Exception as e:
-        print(f"❌ Error iniciando backend: {e}")
-        print("💡 Asegúrate de que UV está instalado y en el PATH")
+        print(f"Error starting backend: {e}")
+        print("Tip: Make sure UV is installed and in PATH")
         if platform.system() == "Windows":
-            print("💡 En Windows, instala UV desde: https://docs.astral.sh/uv/getting-started/installation/")
+            print("Tip: On Windows, install UV from: https://docs.astral.sh/uv/getting-started/installation/")
     finally:
         # Restaurar directorio original
         try:
@@ -95,7 +95,7 @@ def start_backend():
 
 def start_frontend_server():
     """Iniciar servidor para la interfaz frontend."""
-    print("🌐 Iniciando servidor frontend...")
+    print("Starting frontend server...")
     base_dir = _resolve_base_dir()
     frontend_dir = base_dir / "frontend"
     
@@ -109,13 +109,13 @@ def start_frontend_server():
     
     try:
         with socketserver.TCPServer(("", 3000), Handler) as httpd:
-            print("📱 Frontend disponible en: http://localhost:3000")
+            print("Frontend available at: http://localhost:3000")
             httpd.serve_forever()
             
     except KeyboardInterrupt:
         print("\n⏹️ Frontend detenido por usuario")
     except Exception as e:
-        print(f"❌ Error iniciando frontend: {e}")
+        print(f"Error starting frontend: {e}")
 
 
 def _ensure_uv() -> str | None:
@@ -158,53 +158,56 @@ def _ensure_uv() -> str | None:
             pass
         return str(dest)
     except Exception as e:
-        print(f"⚠️ No se pudo descargar uv: {e}")
+        print(f"Warning: Could not download uv: {e}")
         return None
 
 def main():
     """Función principal."""
     current_platform = platform.system()
-    print("🎵 Audio Transcribe - Iniciando aplicación completa...")
+    tauri_mode = os.getenv("TAURI", "").strip()
+    print("Audio Transcribe - Starting complete application...")
     print("=" * 60)
-    print(f"🖥️ Plataforma detectada: {current_platform}")
+    print(f"Platform detected: {current_platform}")
     
     # Verificar que estamos en el directorio correcto
     base_dir = _resolve_base_dir()
     if not (base_dir / "backend" / "main.py").exists():
-        print("❌ Error: No se encuentra el archivo backend/main.py")
+        print("Error: backend/main.py file not found")
         print("   Asegúrate de ejecutar este script desde el directorio raíz del proyecto")
         sys.exit(1)
     
-    print("📋 Componentes a iniciar:")
-    print("   • Backend API (FastAPI) en puerto 8000")
-    print("   • Frontend Web en puerto 3000")
-    print("   • Transcripción en tiempo real con Whisper")
+    print("Components to start:")
+    print("   - Backend API (FastAPI) on port 8000")
+    print("   - Frontend Web on port 3000")
+    print("   - Real-time transcription with Whisper")
     
     # Información específica de plataforma
     if current_platform == "Windows":
-        print("   • Captura de audio: PyAudioWPatch (WASAPI)")
-        print("   • Asegúrate de que PyAudioWPatch esté instalado")
+        print("   - Audio capture: PyAudioWPatch (WASAPI)")
+        print("   - Make sure PyAudioWPatch is installed")
     elif current_platform == "Linux":
-        print("   • Captura de audio: sounddevice (ALSA/PulseAudio)")
+        print("   - Audio capture: sounddevice (ALSA/PulseAudio)")
     elif current_platform == "Darwin":  # macOS
-        print("   • Captura de audio: sounddevice (CoreAudio)")
+        print("   - Audio capture: sounddevice (CoreAudio)")
     
     print()
     
     try:
-        # Iniciar frontend en un hilo separado
-        frontend_thread = threading.Thread(target=start_frontend_server, daemon=True)
-        frontend_thread.start()
-        
-        # Esperar un poco para que inicie el frontend
-        time.sleep(2)
-        
-        print("✅ Servidores iniciados exitosamente!")
+        if not tauri_mode:
+            # Iniciar frontend en un hilo separado cuando NO es Tauri
+            frontend_thread = threading.Thread(target=start_frontend_server, daemon=True)
+            frontend_thread.start()
+            # Esperar un poco para que inicie el frontend
+            time.sleep(2)
+            print("Servers started successfully!")
+            print()
+            print("Access the application at: http://localhost:3000")
+        else:
+            print("Tauri mode: starting backend only (no port 3000 server)")
+            print()
+        print("API documentation at: http://localhost:8000/docs")
         print()
-        print("🌍 Accede a la aplicación en: http://localhost:3000")
-        print("🔧 API documentación en: http://localhost:8000/docs")
-        print()
-        print("💡 Instrucciones:")
+        print("Instructions:")
         print("   1. Abre http://localhost:3000 en tu navegador")
         print("   2. Presiona 'Iniciar Captura' para comenzar")
         print("   3. Habla o reproduce audio para ver la transcripción")
@@ -216,10 +219,11 @@ def main():
         print()
         
         # Intentar abrir automáticamente en el navegador
-        try:
-            webbrowser.open('http://localhost:3000')
-        except Exception:
-            pass
+        if not tauri_mode:
+            try:
+                webbrowser.open('http://localhost:3000')
+            except Exception:
+                pass
         
         # Iniciar backend (esto bloquea)
         start_backend()
@@ -229,8 +233,8 @@ def main():
         print("👋 ¡Hasta luego!")
         
     except Exception as e:
-        print(f"\n❌ Error inesperado: {e}")
-        print(f"💡 Plataforma: {current_platform}")
+        print(f"\nUnexpected error: {e}")
+        print(f"Platform: {current_platform}")
         sys.exit(1)
 
 if __name__ == "__main__":
