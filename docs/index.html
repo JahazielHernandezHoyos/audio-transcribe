@@ -40,6 +40,36 @@
             color: #ffffff;
             background: #000000;
             overflow-x: hidden;
+            scroll-behavior: smooth;
+        }
+
+        /* Custom Scrollbar - Vim Style */
+        ::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #000000;
+            border: 1px solid #ffffff;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ffff00;
+            border: 1px solid #000000;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ffff;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #000000;
+        }
+
+        /* Firefox Scrollbar */
+        html {
+            scrollbar-width: thin;
+            scrollbar-color: #ffff00 #000000;
         }
 
         /* Hero Section - Vim Style */
@@ -654,14 +684,14 @@
             <div class="install-grid">
                 <div class="install-option">
                     <h3 class="install-title">
-                        🪟 Windows
+                        [WIN] Windows
                     </h3>
                     <p class="install-description">
                         Download the native Windows application with one-click installer.
                     </p>
                     <div class="code-block">curl -O https://github.com/JahazielHernandezHoyos/audio-transcribe/releases/latest/download/audio-transcribe-windows.exe</div>
                     <button class="copy-button" onclick="copyToClipboard('curl -O https://github.com/JahazielHernandezHoyos/audio-transcribe/releases/latest/download/audio-transcribe-windows.exe')">
-                        📋 Copy Command
+                        Copy Command
                     </button>
                     <br><br>
                     <a href="https://github.com/JahazielHernandezHoyos/audio-transcribe/releases/latest/download/audio-transcribe-windows.exe" class="btn btn-primary">
@@ -671,14 +701,14 @@
                 
                 <div class="install-option">
                     <h3 class="install-title">
-                        🐧 Linux / 🍎 macOS
+                        [NIX] Linux / macOS
                     </h3>
                     <p class="install-description">
                         One-command installation that automatically detects your system and installs dependencies.
                     </p>
                     <div class="code-block">curl -sSL https://raw.githubusercontent.com/JahazielHernandezHoyos/audio-transcribe/main/unix_installer.sh | bash</div>
                     <button class="copy-button" onclick="copyToClipboard('curl -sSL https://raw.githubusercontent.com/JahazielHernandezHoyos/audio-transcribe/main/unix_installer.sh | bash')">
-                        📋 Copy Command
+                        Copy Command
                     </button>
                     <br><br>
                     <a href="https://github.com/JahazielHernandezHoyos/audio-transcribe/releases/latest/download/audio-transcribe-portable.tar.gz" class="btn btn-primary">
@@ -688,7 +718,7 @@
                 
                 <div class="install-option">
                     <h3 class="install-title">
-                        🔧 From Source
+                        [SRC] From Source
                     </h3>
                     <p class="install-description">
                         Build from source for development or customization.
@@ -752,7 +782,7 @@ python start_app.py</div>
             </div>
             
             <div class="footer-bottom">
-                <p>&copy; 2024 Audio Transcribe. Open source under MIT License.</p>
+                <p>&copy; <span id="current-year">2024</span> Audio Transcribe. Open source under MIT License.</p>
             </div>
         </div>
     </footer>
@@ -869,8 +899,20 @@ python start_app.py</div>
             });
         }, observerOptions);
 
-        // Observe feature cards for animation
+        // Update current year automatically
+        function updateCurrentYear() {
+            const yearElement = document.getElementById('current-year');
+            if (yearElement) {
+                yearElement.textContent = new Date().getFullYear();
+            }
+        }
+
+        // Observe feature cards for animation and update year
         document.addEventListener('DOMContentLoaded', () => {
+            // Update year on page load
+            updateCurrentYear();
+            
+            // Animate cards
             const cards = document.querySelectorAll('.feature-card, .install-option');
             cards.forEach(card => {
                 card.style.opacity = '0';
