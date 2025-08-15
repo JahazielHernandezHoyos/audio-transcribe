@@ -22,6 +22,11 @@
 
     <link rel="icon" type="image/x-icon" href="favicon.ico">
     
+    <!-- Programming Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fira+Code:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
     <style>
         * {
             margin: 0;
@@ -30,35 +35,24 @@
         }
 
         body {
-            font-family: 'Courier New', 'Monaco', 'Lucida Console', monospace;
+            font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Consolas', monospace;
             line-height: 1.6;
             color: #00ff00;
-            background: #1a1a1a;
+            background: #0d1117;
             overflow-x: hidden;
         }
 
         /* Hero Section - Vim Style */
         .hero {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d30 100%);
+            background: #0d1117;
             color: #00ff00;
             min-height: 100vh;
             display: flex;
             align-items: center;
             position: relative;
             overflow: hidden;
-            font-family: 'Courier New', monospace;
         }
 
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
-            opacity: 0.1;
-        }
 
         .container {
             max-width: 1200px;
@@ -117,30 +111,31 @@
         }
 
         .btn-primary {
-            background: rgba(0, 255, 0, 0.1);
+            background: #0d1117;
             color: #00ff00;
-            backdrop-filter: blur(10px);
             border: 2px solid #00ff00;
-            text-shadow: 0 0 10px #00ff00;
+            transition: all 0.2s ease;
         }
 
         .btn-primary:hover {
-            background: rgba(0, 255, 0, 0.2);
+            background: #00ff00;
+            color: #0d1117;
+            border: 2px solid #00ff00;
             transform: translateY(-2px);
-            box-shadow: 0 0 20px #00ff00;
         }
 
         .btn-secondary {
-            background: transparent;
+            background: #0d1117;
             color: #ffff00;
             border: 2px solid #ffff00;
-            text-shadow: 0 0 10px #ffff00;
+            transition: all 0.2s ease;
         }
 
         .btn-secondary:hover {
-            background: rgba(255, 255, 0, 0.1);
-            border-color: #ffff00;
-            box-shadow: 0 0 20px #ffff00;
+            background: #ffff00;
+            color: #0d1117;
+            border: 2px solid #ffff00;
+            transform: translateY(-2px);
         }
 
         .hero-visual {
@@ -150,12 +145,10 @@
         }
 
         .app-preview {
-            background: rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(20px);
-            border-radius: 20px;
+            background: #161b22;
+            border-radius: 8px;
             padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            border: 1px solid #30363d;
             max-width: 500px;
             width: 100%;
         }
@@ -252,8 +245,6 @@
             font-weight: 700;
             margin-bottom: 1rem;
             color: #00ff00;
-            text-shadow: 0 0 10px #00ff00;
-            font-family: 'Courier New', monospace;
         }
 
         .section-subtitle {
@@ -264,7 +255,6 @@
             max-width: 600px;
             margin-left: auto;
             margin-right: auto;
-            font-family: 'Courier New', monospace;
         }
 
         .features-grid {
@@ -275,19 +265,18 @@
         }
 
         .feature-card {
-            background: #1a1a1a;
+            background: #161b22;
             padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 255, 0, 0.2);
-            transition: all 0.3s ease;
-            border: 1px solid #00ff00;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            border: 1px solid #30363d;
             color: #00ff00;
         }
 
         .feature-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 0 25px rgba(0, 255, 0, 0.4);
-            border-color: #ffff00;
+            transform: translateY(-2px);
+            border-color: #00ff00;
+            background: #1c2128;
         }
 
         .feature-icon {
@@ -300,20 +289,18 @@
             font-weight: 600;
             margin-bottom: 0.5rem;
             color: #ffff00;
-            font-family: 'Courier New', monospace;
         }
 
         .feature-description {
-            color: #cccccc;
+            color: #8b949e;
             line-height: 1.6;
-            font-family: 'Courier New', monospace;
         }
 
         /* Install Section */
         .install {
             padding: 100px 0;
-            background: #1a202c;
-            color: white;
+            background: #010409;
+            color: #00ff00;
         }
 
         .install-grid {
@@ -324,11 +311,10 @@
         }
 
         .install-option {
-            background: rgba(255, 255, 255, 0.05);
+            background: #0d1117;
             padding: 2.5rem;
-            border-radius: 16px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            border: 1px solid #30363d;
         }
 
         .install-title {
@@ -341,29 +327,28 @@
         }
 
         .install-description {
-            color: rgba(255, 255, 255, 0.8);
+            color: #8b949e;
             margin-bottom: 2rem;
             line-height: 1.6;
         }
 
         .code-block {
-            background: #0d1117;
+            background: #161b22;
             border: 1px solid #30363d;
-            border-radius: 8px;
+            border-radius: 6px;
             padding: 1rem;
-            font-family: 'SF Mono', Monaco, Consolas, monospace;
             font-size: 0.9rem;
-            color: #f0f6fc;
+            color: #00ff00;
             margin: 1rem 0;
             overflow-x: auto;
         }
 
         .copy-button {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #f0f6fc;
+            background: #0d1117;
+            border: 1px solid #00ff00;
+            color: #00ff00;
             padding: 0.5rem 1rem;
-            border-radius: 6px;
+            border-radius: 4px;
             font-size: 0.85rem;
             cursor: pointer;
             margin-top: 0.5rem;
@@ -371,44 +356,15 @@
         }
 
         .copy-button:hover {
-            background: #30363d;
+            background: #00ff00;
+            color: #0d1117;
         }
 
-        /* Screenshots Section */
-        .screenshots {
-            padding: 100px 0;
-            background: white;
-        }
-
-        .screenshots-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 4rem;
-            margin-top: 3rem;
-        }
-
-        .screenshot-item {
-            text-align: center;
-        }
-
-        .screenshot-item img {
-            max-width: 100%;
-            height: auto;
-            border-radius: 16px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e2e8f0;
-        }
-
-        .screenshot-caption {
-            margin-top: 1rem;
-            font-size: 1.1rem;
-            color: #64748b;
-        }
 
         /* Footer */
         .footer {
-            background: #0f172a;
-            color: white;
+            background: #010409;
+            color: #00ff00;
             padding: 60px 0 30px;
         }
 
@@ -422,26 +378,26 @@
         .footer-section h3 {
             font-size: 1.2rem;
             margin-bottom: 1rem;
-            color: #f1f5f9;
+            color: #ffff00;
         }
 
         .footer-section a {
-            color: #94a3b8;
+            color: #8b949e;
             text-decoration: none;
             display: block;
             margin-bottom: 0.5rem;
-            transition: color 0.3s ease;
+            transition: color 0.2s ease;
         }
 
         .footer-section a:hover {
-            color: #667eea;
+            color: #00ff00;
         }
 
         .footer-bottom {
-            border-top: 1px solid #334155;
+            border-top: 1px solid #30363d;
             padding-top: 2rem;
             text-align: center;
-            color: #94a3b8;
+            color: #8b949e;
         }
 
         /* Responsive Design */
@@ -647,27 +603,6 @@
         </div>
     </section>
 
-    <!-- Screenshots Section -->
-    <section class="screenshots" id="screenshots">
-        <div class="container">
-            <h2 class="section-title">See It In Action</h2>
-            <p class="section-subtitle">
-                Beautiful, modern interface designed for productivity
-            </p>
-            
-            <div class="screenshots-grid">
-                <div class="screenshot-item">
-                    <img src="images/main-interface.png" alt="Main Interface" loading="lazy">
-                    <p class="screenshot-caption">Clean, modern web interface with real-time transcription display</p>
-                </div>
-                
-                <div class="screenshot-item">
-                    <img src="images/api-status.png" alt="System Status" loading="lazy">
-                    <p class="screenshot-caption">System status and real-time transcription monitoring</p>
-                </div>
-            </div>
-        </div>
-    </section>
 
     <!-- Install Section -->
     <section class="install" id="install">
@@ -742,7 +677,7 @@ python start_app.py</div>
             <div class="footer-content">
                 <div class="footer-section">
                     <h3>:audio-transcribe</h3>
-                    <p style="color: #94a3b8; margin-bottom: 1rem;">
+                    <p style="color: #8b949e; margin-bottom: 1rem;">
                         Real-time AI-powered transcription for everyone
                     </p>
                     <div style="display: flex; gap: 1rem;">
